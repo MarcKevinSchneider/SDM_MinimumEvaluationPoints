@@ -8,9 +8,56 @@
 #' Points Needed for Reliable Species Distribution Model Assessment 
 #' Under Varying Conditions". 
 #' 
-#' 
+#' Sets the folder structure and loads the most important packages.
 
 
 # ================================================================
 # 1. Load required packages
 # ================================================================
+
+library(envimaR)          # for the folder structure
+library(dplyr)            # data manipulation
+library(sf)               # spatial vector data
+library(parallel)         # parallel processing
+library(RandomFields)     # Gaussian random fields
+library(NLMR)             # neutral landscape models
+library(terra)            # raster handling
+library(climateStability) # rescaling to [0,1]
+library(RandomFieldsUtils)# dependency RandomField package
+library(raster)           # dependency RandomField package
+library(virtualspecies)   # for virtual species
+library(ggplot2)          # for plotting
+
+# ================================================================
+# 2. Folder structure
+# ================================================================
+
+# set root directory
+rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/Minimum_Evaluation_Points_SDM/"
+
+# mandatory folder structure
+projectDirList <- c(
+  "data/",
+  "docs/",
+  "run/",
+  "tmp",
+  "src/",
+  "src/functions/"
+)
+
+# append additional folders if defined by calling script
+if (exists("appendProjectDirList") && appendProjectDirList[[1]] != "") {
+  projectDirList <- append(projectDirList, appendProjectDirList)
+}
+
+#print(rootDir)
+
+# Automatically set root directory, folder structure and load libraries
+envrmt <- envimaR::createEnvi(
+  root_folder = rootDir,
+  folders = projectDirList,
+  path_prefix = "path_",
+  alt_env_id = "COMPUTERNAME",
+  alt_env_value = "PCRZP",
+  alt_env_root_folder = "F:/BEN/edu"
+)
