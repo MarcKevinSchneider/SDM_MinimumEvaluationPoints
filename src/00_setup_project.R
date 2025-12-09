@@ -41,8 +41,7 @@ projectDirList <- c(
   "data/paRaster",            # Presence-Absence Rasters
   "data/VirtualSpecies",      # Virtual Species RDS files
   "data/ADM",                 # Artificial Distribution Maps
-  "data/pre_points",          # Presence Points RDS files
-  "data/abs_points",          # Absence Points RDS files
+  "data/pre_abs_points",          # Presence-Absence Points RDS files
   "data/bkg_points",          # Background Points RDS files
   "docs/",
   "run/",
