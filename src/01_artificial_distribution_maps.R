@@ -34,6 +34,8 @@ RandomFields::RFoptions(cPrintlevel = 0,
 # 3. Calculate artificial distribution maps
 # ================================================================
 
+set.seed(2962)
+
 # the 10 VS from Grimmet et al. 2020
 species <-  c("VS01", "VS02", "VS03", "VS04", 
             "VS05", "VS06", "VS07", "VS08", "VS09", "VS10")
