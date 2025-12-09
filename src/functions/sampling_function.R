@@ -34,7 +34,7 @@ test <- readRDS(paste0(envrmt$path_VirtualSpecies, "/", "VS01.RDS"))
 # 2 - Function for random sampling of presence-absence and background data ####
 #-----------------------------------------#
 
-random_sampling <- function(species_name, fit, sample_p){
+random_sampling <- function(species_name, fit, sample_p, iter){
   
   fit <- as.character(fit)
   
@@ -82,17 +82,17 @@ random_sampling <- function(species_name, fit, sample_p){
   sample_p <- as.character(sample_p)
   
   # creating directory for the presence absence data
-  dir_pres <- paste0(envrmt$path_pre_abs_points, "/", species_name, "/", sample_p)
+  dir_pres <- paste0(envrmt$path_pre_abs_points, "/", "Random", "/", species_name, "/", sample_p)
   if(!dir.exists(dir_pres)) dir.create(dir_pres, recursive = TRUE)
   # saving the presence absence data
-  sf::write_sf(species_data_compl, paste0(dir_pres, "/", species_name, "_", 
-                                          fit, "_Pres_Abs.gpkg"))
+  sf::write_sf(species_data_compl, paste0(dir_pres, "/", species_name, "_Fit_", 
+                                          fit, "_Iteration_", iter, "_Pres_Abs.gpkg"))
   # creating directory for the background data
-  dir_bkg <- paste0(envrmt$path_bkg_points, "/", species_name, "/", sample_p)
+  dir_bkg <- paste0(envrmt$path_bkg_points, "/", "Random", "/", species_name, "/", sample_p)
   if(!dir.exists(dir_bkg)) dir.create(dir_bkg, recursive = TRUE)
   # saving the background data
-  sf::write_sf(background_points, paste0(dir_bkg, "/", species_name, "_",
-                                                fit, "_Background.gpkg"))
+  sf::write_sf(background_points, paste0(dir_bkg, "/", species_name, "_Fit_",
+                                         fit, "_Iteration_", iter, "_Background.gpkg"))
   print(paste0("Saved species data for n=", sample_p, "!"))
 }
   
