@@ -18,20 +18,11 @@ source(path, echo = FALSE) # echo set to false here to stop the script from prin
 set.seed(2962)
 
 # ================================================================
-# 2. Sampling function
+# 2. Sampling functions
 # ================================================================
 
-# WORK IN PROGRESS
-sample_presence <- function(sample_size, 
-                            sampling_strategy,
-                            plot_points = FALSE){
-  
-}
 
-test <- readRDS(paste0(envrmt$path_VirtualSpecies, "/", "VS01.RDS"))
-
-
-# 2 - Function for random sampling of presence-absence and background data ####
+# 1 - Function for random sampling of presence-absence and background data ####
 #-----------------------------------------#
 
 random_sampling <- function(species_name, fit, sample_p, iter){
