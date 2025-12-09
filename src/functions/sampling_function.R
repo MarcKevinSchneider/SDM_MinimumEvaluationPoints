@@ -10,7 +10,7 @@
 # 1. Load setup script
 # ================================================================
 
-rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/Minimum_Evaluation_Points_SDM/"
+rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_MinimumEvaluationPoints/"
 # calling the setup script
 path <- file.path(rootDir, "src", "00_setup_project.R")
 source(path, echo = FALSE) # echo set to false here to stop the script from printing
@@ -22,7 +22,7 @@ set.seed(2962)
 # ================================================================
 
 
-# 1 - Function for random sampling of presence-absence and background data ####
+# 1 - Random Sampling ####
 #-----------------------------------------#
 
 random_sampling <- function(species_name, fit, sample_p, iter){
@@ -84,6 +84,13 @@ random_sampling <- function(species_name, fit, sample_p, iter){
   # saving the background data
   sf::write_sf(background_points, paste0(dir_bkg, "/", species_name, "_Fit_",
                                          fit, "_Iteration_", iter, "_Background.gpkg"))
-  print(paste0("Saved species data for n=", sample_p, "!"))
+  #print(paste0("Saved species data for n=", sample_p, "!"))
 }
+
+
+# 2 - Clustered Sampling Function ####
+#-----------------------------------------#
+
+cluster_sampling <- function(species_name, fit, sample_p, iter){
   
+}  

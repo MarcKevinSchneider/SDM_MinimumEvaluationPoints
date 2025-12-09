@@ -17,7 +17,7 @@
 # ================================================================
 # 1. Load setup script
 # ================================================================
-rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/Minimum_Evaluation_Points_SDM/"
+rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_MinimumEvaluationPoints/"
 # calling the setup script
 path <- file.path(rootDir, "src", "00_setup_project.R")
 source(path, echo = TRUE)

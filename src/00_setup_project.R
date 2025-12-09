@@ -27,6 +27,8 @@ library(RandomFieldsUtils)# dependency RandomField package
 library(raster)           # dependency RandomField package
 library(virtualspecies)   # for virtual species
 library(ggplot2)          # for plotting
+library(tidyverse)
+library(geodata)
 
 # ================================================================
 # 2. Folder structure
