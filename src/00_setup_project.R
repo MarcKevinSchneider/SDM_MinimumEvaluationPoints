@@ -27,6 +27,7 @@ library(RandomFieldsUtils)# dependency RandomField package
 library(raster)           # dependency RandomField package
 library(virtualspecies)   # for virtual species
 library(ggplot2)          # for plotting
+library(blockCV)          # for some of the sampling strategies
 library(tidyverse)
 library(geodata)
 
