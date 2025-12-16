@@ -43,6 +43,9 @@ params <- expand.grid(
 test_abs <- sf::read_sf(paste0(envrmt$path_pre_abs_points, 
                     "/Random/VS01/10/VS01_Fit_0.1_Iteration_1_Pres_Abs.gpkg"))
 
+test_abs <- test_abs %>% 
+  filter(Observed == 1)
+
 # binary classification using the extracted values from each ADM
 # if above 0.5 classify as presence if below as absence
 test_abs$Predicted <- ifelse(test_abs$lyr.1 >= 0.5, 1, 0)
@@ -116,9 +119,17 @@ results <- lapply(1:nrow(params), function(i){
   
   # 5. Rest of the code
   #--------------------------------------------------------
-    
+  
+  # no filter for now since I have to figure out the background/absence 
+  # stuff; with filtering AUC, TSS and Pearson are NA since no absences exist
+  presences <- pres_abs
+  
+  # uncomment when filtering is needed
+  #presences <- pres_abs %>% filter(Observed == 1)
+  #absences <- pres_abs %>% filter(Observed == 0)
+  
   # binary classification of presence absence depending on the values of the ADM
-  pres_abs$Predicted <- ifelse(pres_abs$lyr.1 >= 0.5, 1, 0)
+  presences$Predicted <- ifelse(presences$lyr.1 >= 0.5, 1, 0)
 
   # have to do this since we are also extracting the real distribution data now
   #colnames(pa_raw)[colnames(pa_raw) == "Observed"] <- "Predicted"
@@ -136,7 +147,7 @@ results <- lapply(1:nrow(params), function(i){
   #pa_df <- cbind(pa_extract, observed = pa_raw$Predicted)
   
   # calculate metrics
-  metrics <- eval_funcs(pres_abs)
+  metrics <- eval_funcs(presences)
   
   print(paste0("Finished evaluation for Sampling Strategy: ", params$strat[i],
                ", Species: ", params$sp[i], ", Sample Size: ", params$n[i],
@@ -161,4 +172,5 @@ results <- lapply(1:nrow(params), function(i){
   )
 })
 
+# bind the results
 results_df <- do.call(rbind, results)
