@@ -23,7 +23,31 @@ set.seed(2962)
 # ================================================================
 
 block_sampling <- function(species_name, fit, sample_p, iter){
+  '
+  Purpose: Samples presence-absence points using a spatial blocking approach
   
+  
+  Parameters:
+  ----------------------------
+  
+  species_name: str
+    Name of the species; example: "VS01", "VS02"
+    
+  fit: str
+    Name of the goodness of fit; example: "0.1", "0.2"
+    
+  sample_p: int
+    Number of sample points
+    
+  iter: str
+    What iteration the code is on
+    
+  
+  Returns:
+  ---------------------------
+  A presence-absence dataset with spatial blocking and a random background dataset
+  
+  '
   
   # 1. Ensuring data structure
   #--------------------------------------------------------

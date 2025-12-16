@@ -45,7 +45,7 @@ random_sampling <- function(species_name, fit, sample_p, iter){
   
   Returns:
   ---------------------------
-  A clustered presence-absence dataset and a background dataset
+  A random presence-absence dataset and a background dataset
   
   '
   
