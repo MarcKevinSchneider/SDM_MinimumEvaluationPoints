@@ -42,7 +42,7 @@ params <- expand.grid(
 )
 
 # loop over all parameters
-mclapply(1:nrow(params), function(i){
+lapply(1:nrow(params), function(i){
   #random_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
-  cluster_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
+  cluster_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=TRUE)
 })

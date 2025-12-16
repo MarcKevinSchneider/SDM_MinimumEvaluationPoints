@@ -225,14 +225,43 @@ cluster_sampling <- function(species_name, fit, sample_p, iter, plot=FALSE){
   pres_per_cluster <- ceiling(sample_p / k_folds)
   
   # sample within the clusters
+  #pres_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
+    # subset presence points belonging to this cluster
+  #  pts <- pres_coords_sf[pres_coords_sf$cluster == cl, ]
+  #  if (nrow(pts) == 0) return(NULL)
+    # sample the requested number of points (or all if fewer exist)
+  #  pts[sample(seq_len(nrow(pts)), 
+  #             size = min(pres_per_cluster, nrow(pts)), 
+  #             replace = FALSE), ]
+  #}))
+  
+  # i actually dont know if this works properly???
+  # this is supposed to sample within clusters, weighted toward the centroid
+  # of each cluster to have a biased distribution
   pres_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
+    
     # subset presence points belonging to this cluster
     pts <- pres_coords_sf[pres_coords_sf$cluster == cl, ]
     if (nrow(pts) == 0) return(NULL)
-    # sample the requested number of points (or all if fewer exist)
-    pts[sample(seq_len(nrow(pts)), 
-               size = min(pres_per_cluster, nrow(pts)), 
-               replace = FALSE), ]
+    
+    # extract xy coords
+    xy <- sf::st_coordinates(pts)
+    
+    # compute centroid for this cluster
+    centroid <- colMeans(xy)
+    
+    # inverse distance of each point to the centroid
+    d <- sqrt((xy[,1] - centroid[1])^2 + (xy[,2] - centroid[2])^2)
+    
+    # convert distances into sampling probabilities (closer = higher prob)
+    prob <- 1 / (d + 1e-6)  # avoid division by zero
+    prob <- prob / sum(prob)  # normalize
+    
+    # sample using weighted probabilities
+    pts[sample(seq_len(nrow(pts)),
+               size = min(pres_per_cluster, nrow(pts)),
+               replace = FALSE,
+               prob = prob), ]
   }))
   
   # now absence sampling inside clusters
@@ -259,14 +288,44 @@ cluster_sampling <- function(species_name, fit, sample_p, iter, plot=FALSE){
   abs_coords_sf$cluster <- abs_clusters
   
   # sample absence points within each cluster
-  abs_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
+  #abs_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
     # subset absence points belonging to this cluster
-    pts <- abs_coords_sf[abs_coords_sf$cluster == cl, ]
-    if (nrow(pts) == 0) return(NULL)
+    #pts <- abs_coords_sf[abs_coords_sf$cluster == cl, ]
+    #if (nrow(pts) == 0) return(NULL)
     # sample the requested number of points (or all if fewer exist)
-    pts[sample(seq_len(nrow(pts)), 
-               size = min(pres_per_cluster, nrow(pts)), 
-               replace = FALSE), ]
+    #pts[sample(seq_len(nrow(pts)), 
+    #           size = min(pres_per_cluster, nrow(pts)), 
+   #            replace = FALSE), ]
+  #}))
+  
+  abs_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
+    
+    # subset presence points belonging to this cluster
+    pts <- abs_coords_sf[abs_coords_sf$cluster == cl, ]
+    
+    print(sum(is.na(sf::st_coordinates(pts))))
+    print(sum(is.na(pts$cluster)))
+    
+    if (nrow(pts) == 0) return(NULL)
+    
+    # extract xy coords
+    xy <- sf::st_coordinates(pts)
+    
+    # compute centroid for this cluster
+    centroid <- colMeans(xy)
+    
+    # inverse distance of each point to the centroid
+    d <- sqrt((xy[,1] - centroid[1])^2 + (xy[,2] - centroid[2])^2)
+    
+    # convert distances into sampling probabilities (closer = higher prob)
+    prob <- 1 / (d + 1e-6)  # avoid division by zero
+    prob <- prob / sum(prob)  # normalize
+    
+    # sample using weighted probabilities
+    pts[sample(seq_len(nrow(pts)),
+               size = min(pres_per_cluster, nrow(pts)),
+               replace = FALSE,
+               prob = prob), ]
   }))
   
   # set observed to 1 or 0 depending on if the data is presence
