@@ -15,6 +15,7 @@ rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_Mi
 path <- file.path(rootDir, "src", "00_setup_project.R")
 source(path, echo = TRUE)
 
+# sourcing the sampling functions
 source(paste0(envrmt$path_src, "/functions/sampling_function.R"))
 
 # ================================================================

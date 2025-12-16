@@ -28,8 +28,9 @@ library(raster)           # dependency RandomField package
 library(virtualspecies)   # for virtual species
 library(ggplot2)          # for plotting
 library(blockCV)          # for some of the sampling strategies
-library(tidyverse)
-library(geodata)
+library(Metrics)          # for the evaluation metrics 
+library(tidyverse)        # general functions
+library(geodata)          # for the download of the border data
 
 # ================================================================
 # 2. Folder structure
@@ -44,7 +45,7 @@ projectDirList <- c(
   "data/paRaster",            # Presence-Absence Rasters
   "data/VirtualSpecies",      # Virtual Species RDS files
   "data/ADM",                 # Artificial Distribution Maps
-  "data/pre_abs_points",          # Presence-Absence Points RDS files
+  "data/pre_abs_points",      # Presence-Absence Points RDS files
   "data/bkg_points",          # Background Points RDS files
   "docs/",
   "run/",

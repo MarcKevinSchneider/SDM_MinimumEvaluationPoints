@@ -4,8 +4,8 @@
 #' @contact Schnei7q@students.uni-marburg.de
 #' 
 #' @description
-#' Functions evaluating the samples using AUC, TSS, RMSE, MAE, Pearson's Correlation,
-#' Jaccard's Similarity Index and Sorensen's Similarity Index
+#' Functions for evaluating the samples using AUC, TSS, RMSE, MAE, 
+#' Pearson's Correlation, Jaccard's Similarity Index and Sorensen's Similarity Index
 
 # ================================================================
 # 1. Load setup script

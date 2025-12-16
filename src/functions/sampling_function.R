@@ -86,8 +86,8 @@ random_sampling <- function(species_name, fit, sample_p, iter){
                                     crs=terra::crs(landscape), coords=c("x","y"), remove=F)
   
   # extracting the data for the background points
-  bg_extr=terra::extract(landscape, background_points)
-  background_points =cbind(background_points,bg_extr);rm(bg_extr)
+  bg_extr <- terra::extract(landscape, background_points)
+  background_points <- cbind(background_points,bg_extr);rm(bg_extr)
   
   # extracting the data for the presence-points
   species_data_extr <- terra::extract(landscape, pres_abs_sf)
