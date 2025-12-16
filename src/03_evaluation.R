@@ -15,6 +15,9 @@ rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_Mi
 path <- file.path(rootDir, "src", "00_setup_project.R")
 source(path, echo = TRUE)
 
+# set seed
+set.seed(2962)
+
 # sourcing the evaluation functions
 source(paste0(envrmt$path_src, "/functions/evaluation_functions.R"))
 
@@ -32,22 +35,17 @@ params <- expand.grid(
   stringsAsFactors = FALSE
 )
 
+##################################
+
+# Testing block to write the loop below
+
+# presence absence points
 test_abs <- sf::read_sf(paste0(envrmt$path_pre_abs_points, 
                     "/Random/VS01/10/VS01_Fit_0.1_Iteration_1_Pres_Abs.gpkg"))
 
+# binary classification using the extracted values from each ADM
+# if above 0.5 classify as presence if below as absence
 test_abs$Predicted <- ifelse(test_abs$lyr.1 >= 0.5, 1, 0)
-
-
-# have to do this since we are also extracting the real distribution data now
-colnames(test_abs)[colnames(test_abs) == "Observed"] <- "Predicted"
-
-raster_test <- terra::rast(paste0(envrmt$path_paRaster, "/VS01.tif"))
-
-# convert to sf
-test_points <- sf::st_as_sf(test_abs, coords = c("x", "y"), crs = terra::crs(raster_test))
-
-test_extract <- terra::extract(raster_test, test_points, method = "bilinear")
-
 
 
 test_bck <- sf::read_sf(paste0(envrmt$path_bkg_points, 
@@ -60,22 +58,30 @@ colnames(test_abs)[colnames(test_abs) == "Observed"] <- "Predicted"
 ###################################
 ###################################
 
-lapply(1:nrow(params), function(i){
+# loop evaluating each iteration of the data
+# right now this only compares the classified presence-absence data from each
+# ADM to the presence-absence data from the original presence-absence raster!
+
+# does not use background points in this version, have to change that
+
+results <- lapply(1:nrow(params), function(i){
   
   # 1. Load presence–absence data
-  --------------------------------------------------------
+  #--------------------------------------------------------
   
   # construct file path for the Presence-Absence data
-  file_path <- paste0(envrmt$path_pre_abs_points, "/", params$strat[i], "/",
-                      params$sp[i], "/", params$n[i], "/", params$sp[i], "_Fit_", 
+  file_path <- paste0(envrmt$path_pre_abs_points, "/", params$strat[i], "/", 
+                      params$sp[i], "/", params$n[i], "/", params$sp[i], "_Fit_",
                       params$fit[i], "_Iteration_", params$iter[i], "_Pres_Abs.gpkg")
+  
+  #print(file_path)
   
   # check if file exists
   if (!file.exists(file_path)) return(NULL)
   pres_abs <- sf::read_sf(file_path)
   
   # 2. Load background data
-  --------------------------------------------------------
+  #--------------------------------------------------------
   
   # construct path for background data
   bck_path <- paste0(envrmt$path_bkg_points, "/", params$strat[i], "/",
@@ -87,7 +93,7 @@ lapply(1:nrow(params), function(i){
   bck_pts <- sf::read_sf(bck_path)
   
   # 3. Load artificial distribution map data
-  --------------------------------------------------------
+  #--------------------------------------------------------
   
   # construct path for the ADM data
   ls_path <- paste0(envrmt$path_ADM, "/", params$sp[i], "/", 
@@ -98,7 +104,7 @@ lapply(1:nrow(params), function(i){
   adm <- terra::rast(ls_path)
   
   # 4. Load original "true" presence–absence raster data
-  --------------------------------------------------------
+  #--------------------------------------------------------
   
   # construct path for the original Presence-Absence raster
   pa_path <- paste0(envrmt$path_paRaster, "/", params$sp[i], ".tif")
@@ -109,9 +115,9 @@ lapply(1:nrow(params), function(i){
   
   
   # 5. Rest of the code
-  --------------------------------------------------------
+  #--------------------------------------------------------
     
-  # extract the sample points from the presence absence rds
+  # binary classification of presence absence depending on the values of the ADM
   pres_abs$Predicted <- ifelse(pres_abs$lyr.1 >= 0.5, 1, 0)
 
   # have to do this since we are also extracting the real distribution data now
@@ -130,8 +136,13 @@ lapply(1:nrow(params), function(i){
   #pa_df <- cbind(pa_extract, observed = pa_raw$Predicted)
   
   # calculate metrics
-  metrics <- eval_funcs(pa_df)
+  metrics <- eval_funcs(pres_abs)
   
+  print(paste0("Finished evaluation for Sampling Strategy: ", params$strat[i],
+               ", Species: ", params$sp[i], ", Sample Size: ", params$n[i],
+               ", Fit: ", params$fit[i], ", Iteration: ", params$iter[i]))
+  
+  # store data abou tthe run and metrics in a dataframe
   data.frame(
     strat = params$strat[i],
     sp    = params$sp[i],
@@ -139,14 +150,14 @@ lapply(1:nrow(params), function(i){
     fit   = params$fit[i],
     iter  = params$iter[i],
     
-    AUC  = m$AUC,
-    MAE  = m$MAE,
-    RMSE = m$RMSE,
-    TSS  = m$TSS,
-    COR  = m$COR,
-    JAC  = m$JAC,
-    DIS  = m$DIS,
-    SOR  = m$SOR
+    AUC  = metrics$AUC,
+    MAE  = metrics$MAE,
+    RMSE = metrics$RMSE,
+    TSS  = metrics$TSS,
+    COR  = metrics$COR,
+    JAC  = metrics$JAC,
+    DIS  = metrics$DIS,
+    SOR  = metrics$SOR
   )
 })
 

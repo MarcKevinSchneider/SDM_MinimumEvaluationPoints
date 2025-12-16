@@ -22,6 +22,9 @@ rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_Mi
 path <- file.path(rootDir, "src", "00_setup_project.R")
 source(path, echo = TRUE)
 
+# set seed
+set.seed(2962)
+
 # ================================================================
 # 2. Configure RandomFields settings
 # ================================================================
@@ -33,8 +36,6 @@ RandomFields::RFoptions(cPrintlevel = 0,
 # ================================================================
 # 3. Calculate artificial distribution maps
 # ================================================================
-
-set.seed(2962)
 
 # the 10 VS from Grimmet et al. 2020
 species <-  c("VS01", "VS02", "VS03", "VS04", 

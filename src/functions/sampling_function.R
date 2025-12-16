@@ -15,6 +15,7 @@ rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_Mi
 path <- file.path(rootDir, "src", "00_setup_project.R")
 source(path, echo = FALSE) # echo set to false here to stop the script from printing
 
+# set seed
 set.seed(2962)
 
 # ================================================================

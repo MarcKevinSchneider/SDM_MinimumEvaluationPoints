@@ -39,6 +39,9 @@ library(geodata)          # for the download of the border data
 # set root directory
 rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_MinimumEvaluationPoints/"
 
+# set the seed
+set.seed(2962)
+
 # folder structure
 projectDirList <- c(
   "data/",

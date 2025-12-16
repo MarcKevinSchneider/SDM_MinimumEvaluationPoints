@@ -16,6 +16,7 @@ rootDir <- "C:/Users/kevis/OneDrive/Desktop/Unisachen/Master/Masterarbeit/SDM_Mi
 path <- file.path(rootDir, "src", "00_setup_project.R")
 source(path, echo = FALSE) # echo set to false here to stop the script from printing
 
+# set seed
 set.seed(2962)
 
 # ================================================================
@@ -44,6 +45,7 @@ auc_eval <- function(df){
   AUC
   '
   AUC <- Metrics::auc(actual = df$Observed, predicted = df$Predicted)
+  #print("Successfully calculated AUC.")
   
   return(AUC)
 }
@@ -68,7 +70,7 @@ mae_eval <- function(df){
   MAE
   '
   MAE <- Metrics::mae(actual = df$Observed, predicted = df$Predicted)
-  
+  #print("Successfully calculated MAE.")
   return(MAE)
 }
 
@@ -93,7 +95,7 @@ rmse_eval <- function(df){
   RMSE
   '
   RMSE <- Metrics::rmse(actual = df$Observed, predicted = df$Predicted)
-  
+  #print("Successfully calculated RMSE.")
   return(RMSE)
 }
 
@@ -128,7 +130,7 @@ tss_eval <- function(df){
   # formula for calculating TSS
   # have to do it this way since "Metrics" doesnt have a TSS function
   TSS <- (tp / (tp + fn)) - (fp / (fp + tn))
-  
+  #print("Successfully calculated TSS.")
   return(TSS)
 }
 
@@ -158,6 +160,8 @@ cor_eval <- function(df){
     method = "pearson",
     use = "complete.obs"
   )
+  #print("Successfully calculated Pearson's R.")
+  return(pearson_r)
 }
 
 # 6 - Jaccard's Similarity Index ###
@@ -196,6 +200,7 @@ jaccard_eval <- function(df){
   fn <- sum(df$Predicted == 0 & df$Observed == 1)
   
   JAC <- tp / (tp + fp + fn)
+  #print("Successfully calculated Jaccards Similarity Index.")
   return(JAC)
 
 }
@@ -222,8 +227,9 @@ jaccard_distance <- function(df){
   --------------------------
   Jacards Dissimilarity Index
   '
-  jacard <- jacard_eval(df)
+  jacard <- jaccard_eval(df)
   JAC_DIS <- 1 - jacard
+  #print("Successfully calculated Jaccards Distance Index.")
   return(JAC_DIS)
 }
 
@@ -255,6 +261,7 @@ sorensen_eval <- function(df){
   
   # calc sorensen's
   SOREN <- (2 * tp) / (2 * tp + fp + fn)
+  #print("Successfully calculated Sorensen's Similarity Index.")
   return(SOREN)
 }
 
