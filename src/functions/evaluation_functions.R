@@ -43,7 +43,7 @@ auc_eval <- function(df){
   --------------------------
   AUC
   '
-  AUC <- Metrics::auc(actual = df$observed, predicted = df$predicted)
+  AUC <- Metrics::auc(actual = df$Observed, predicted = df$Predicted)
   
   return(AUC)
 }
@@ -67,7 +67,7 @@ mae_eval <- function(df){
   --------------------------
   MAE
   '
-  MAE <- Metrics::mae(actual = df$observed, predicted = df$predicted)
+  MAE <- Metrics::mae(actual = df$Observed, predicted = df$Predicted)
   
   return(MAE)
 }
@@ -92,7 +92,7 @@ rmse_eval <- function(df){
   --------------------------
   RMSE
   '
-  RMSE <- Metrics::rmse(actual = df$observed, predicted = df$predicted)
+  RMSE <- Metrics::rmse(actual = df$Observed, predicted = df$Predicted)
   
   return(RMSE)
 }
@@ -117,13 +117,13 @@ tss_eval <- function(df){
   TSS
   '
   # true positives
-  tp <- sum(df$predicted == 1 & df$observed == 1)
+  tp <- sum(df$Predicted == 1 & df$Observed == 1)
   # false negatives
-  fn <- sum(df$predicted == 0 & df$observed == 1)
+  fn <- sum(df$Predicted == 0 & df$Observed == 1)
   # false positives
-  fp <- sum(df$predicted == 1 & df$observed == 0)
+  fp <- sum(df$Predicted == 1 & df$Observed == 0)
   # true negatives
-  tn <- sum(df$predicted == 0 & df$observed == 0)
+  tn <- sum(df$Predicted == 0 & df$Observed == 0)
   
   # formula for calculating TSS
   # have to do it this way since "Metrics" doesnt have a TSS function
@@ -153,8 +153,8 @@ cor_eval <- function(df){
   Pearsons R
   '
   pearson_r <- cor(
-    as.numeric(df$predicted),
-    as.numeric(df$observed),
+    as.numeric(df$Predicted),
+    as.numeric(df$Observed),
     method = "pearson",
     use = "complete.obs"
   )
@@ -184,16 +184,16 @@ jaccard_eval <- function(df){
   
   # apparently this is not correct for binary data?
   # have to check again
-  #intersection = length(intersect(df$predicted, df$observed))
-  #union = length(df$predicted) + length(df$observed) - intersection
+  #intersection = length(intersect(df$Predicted, df$Observed))
+  #union = length(df$Predicted) + length(df$Observed) - intersection
   #JAC <- intersection/union
   
   # true positive
-  tp <- sum(df$predicted == 1 & df$observed == 1)
+  tp <- sum(df$Predicted == 1 & df$Observed == 1)
   # false positive
-  fp <- sum(df$predicted == 1 & df$observed == 0)
+  fp <- sum(df$Predicted == 1 & df$Observed == 0)
   # false negative
-  fn <- sum(df$predicted == 0 & df$observed == 1)
+  fn <- sum(df$Predicted == 0 & df$Observed == 1)
   
   JAC <- tp / (tp + fp + fn)
   return(JAC)
@@ -247,11 +247,11 @@ sorensen_eval <- function(df){
   Sorensens Similarity Index
   '
   # true positive
-  tp <- sum(df$predicted == 1 & df$observed == 1)
+  tp <- sum(df$Predicted == 1 & df$Observed == 1)
   # false positive
-  fp <- sum(df$predicted == 1 & df$observed == 0)
+  fp <- sum(df$Predicted == 1 & df$Observed == 0)
   # false negative
-  fn <- sum(df$predicted == 0 & df$observed == 1)
+  fn <- sum(df$Predicted == 0 & df$Observed == 1)
   
   # calc sorensen's
   SOREN <- (2 * tp) / (2 * tp + fp + fn)

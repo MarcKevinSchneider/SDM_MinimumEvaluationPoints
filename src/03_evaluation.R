@@ -32,8 +32,38 @@ params <- expand.grid(
   stringsAsFactors = FALSE
 )
 
+test_abs <- sf::read_sf(paste0(envrmt$path_pre_abs_points, 
+                    "/Random/VS01/10/VS01_Fit_0.1_Iteration_1_Pres_Abs.gpkg"))
+
+test_abs$Predicted <- ifelse(test_abs$lyr.1 >= 0.5, 1, 0)
+
+
+# have to do this since we are also extracting the real distribution data now
+colnames(test_abs)[colnames(test_abs) == "Observed"] <- "Predicted"
+
+raster_test <- terra::rast(paste0(envrmt$path_paRaster, "/VS01.tif"))
+
+# convert to sf
+test_points <- sf::st_as_sf(test_abs, coords = c("x", "y"), crs = terra::crs(raster_test))
+
+test_extract <- terra::extract(raster_test, test_points, method = "bilinear")
+
+
+
+test_bck <- sf::read_sf(paste0(envrmt$path_bkg_points, 
+                               "/Random/VS01/10/VS01_Fit_0.1_Iteration_1_Background.gpkg"))
+
+colnames(test_abs)[colnames(test_abs) == "Observed"] <- "Predicted"
+
+
+
+###################################
+###################################
+
 lapply(1:nrow(params), function(i){
   
+  # 1. Load presence–absence data
+  --------------------------------------------------------
   
   # construct file path for the Presence-Absence data
   file_path <- paste0(envrmt$path_pre_abs_points, "/", params$strat[i], "/",
@@ -41,13 +71,11 @@ lapply(1:nrow(params), function(i){
                       params$fit[i], "_Iteration_", params$iter[i], "_Pres_Abs.gpkg")
   
   # check if file exists
-  if (!file.exists(file_path)){
-    print("Presence-Absence data not found!")
-  } else {
-    # if file exists then read the file
-    pres_abs <- sf::read_sf(file_path)
-    #print("File successfully read!")
-  }
+  if (!file.exists(file_path)) return(NULL)
+  pres_abs <- sf::read_sf(file_path)
+  
+  # 2. Load background data
+  --------------------------------------------------------
   
   # construct path for background data
   bck_path <- paste0(envrmt$path_bkg_points, "/", params$strat[i], "/",
@@ -55,63 +83,71 @@ lapply(1:nrow(params), function(i){
                      params$fit[i], "_Iteration_", params$iter[i], "_Background.gpkg")
 
   # check if file exists
-  if (!file.exists(bck_path)){
-    print("Background data not found!")
-  } else {
-    # if file exists then read the file
-    bck_pts <- sf::read_sf(bck_path)
-    #print("File successfully read!")
-  }
+  if (!file.exists(bck_path)) return(NULL)
+  bck_pts <- sf::read_sf(bck_path)
+  
+  # 3. Load artificial distribution map data
+  --------------------------------------------------------
   
   # construct path for the ADM data
   ls_path <- paste0(envrmt$path_ADM, "/", params$sp[i], "/", 
                      params$sp[i], "_Fit_", params$fit[i], ".tif")
   
   # check if file exists
-  if (!file.exists(ls_path)){
-    print("ADM data not found!")
-  } else {
-    # if file exists then read the file
-    adm <- terra::rast(ls_path)
-    #print("File successfully read!")
-  }
+  if (!file.exists(ls_path)) return(NULL)
+  adm <- terra::rast(ls_path)
+  
+  # 4. Load original "true" presence–absence raster data
+  --------------------------------------------------------
   
   # construct path for the original Presence-Absence raster
   pa_path <- paste0(envrmt$path_paRaster, "/", params$sp[i], ".tif")
   
   # check if file exists
-  if (!file.exists(pa_path)){
-    print("Original distribution data not found!")
-  } else {
-    # if file exists then read the file
-    paRaster <- terra::rast(pa_path)
-    #print("File successfully read!")
-  }
+  if (!file.exists(pa_path)) return(NULL)
+  paRaster <- terra::rast(pa_path)
   
+  
+  # 5. Rest of the code
+  --------------------------------------------------------
+    
   # extract the sample points from the presence absence rds
-  pa_raw <- pres_abs[[3]]$sample.points
-  # rename from observed to predicted
+  pres_abs$Predicted <- ifelse(pres_abs$lyr.1 >= 0.5, 1, 0)
+
   # have to do this since we are also extracting the real distribution data now
-  colnames(pa_raw)[colnames(pa_raw) == "Observed"] <- "Predicted"
+  #colnames(pa_raw)[colnames(pa_raw) == "Observed"] <- "Predicted"
   
   # convert to sf
-  pa_points <- sf::st_as_sf(pa_raw, coords = c("x", "y"), crs = terra::crs(paRaster))
+  #pa_points <- sf::st_as_sf(pa_raw, coords = c("x", "y"), crs = terra::crs(paRaster))
   
   # extract the true data from the original distribution
-  pa_extract <- terra::extract(paRaster, pa_points, method = "bilinear")
+  #pa_extract <- terra::extract(paRaster, pa_points, method = "bilinear")
   
   # rename to observed
-  colnames(pa_extract)[2] <- "observed"
+  #colnames(pa_extract)[2] <- "observed"
   
   # bind both dataframes
-  pa_df <- cbind(pa_extract, observed = pa_raw$Predicted)
+  #pa_df <- cbind(pa_extract, observed = pa_raw$Predicted)
   
   # calculate metrics
   metrics <- eval_funcs(pa_df)
-
-
   
-  
-  
+  data.frame(
+    strat = params$strat[i],
+    sp    = params$sp[i],
+    n     = params$n[i],
+    fit   = params$fit[i],
+    iter  = params$iter[i],
+    
+    AUC  = m$AUC,
+    MAE  = m$MAE,
+    RMSE = m$RMSE,
+    TSS  = m$TSS,
+    COR  = m$COR,
+    JAC  = m$JAC,
+    DIS  = m$DIS,
+    SOR  = m$SOR
+  )
 })
 
+results_df <- do.call(rbind, results)
