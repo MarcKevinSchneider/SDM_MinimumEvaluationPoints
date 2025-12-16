@@ -28,6 +28,21 @@ set.seed(2962)
 #-----------------------------------------#
 
 auc_eval <- function(df){
+  '
+  Purpose: Helper function for calculating the AUC
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  AUC
+  '
   AUC <- Metrics::auc(actual = df$observed, predicted = df$predicted)
   
   return(AUC)
@@ -37,6 +52,21 @@ auc_eval <- function(df){
 #-----------------------------------------#
 
 mae_eval <- function(df){
+  '
+  Purpose: Helper function for calculating the MAE
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  MAE
+  '
   MAE <- Metrics::mae(actual = df$observed, predicted = df$predicted)
   
   return(MAE)
@@ -47,6 +77,21 @@ mae_eval <- function(df){
 #-----------------------------------------#
 
 rmse_eval <- function(df){
+  '
+  Purpose: Helper function for calculating the RMSE
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  RMSE
+  '
   RMSE <- Metrics::rmse(actual = df$observed, predicted = df$predicted)
   
   return(RMSE)
@@ -56,6 +101,21 @@ rmse_eval <- function(df){
 #-----------------------------------------#
 
 tss_eval <- function(df){
+  '
+  Purpose: Helper function for calculating the TSS
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  TSS
+  '
   # true positives
   tp <- sum(df$predicted == 1 & df$observed == 1)
   # false negatives
@@ -77,6 +137,21 @@ tss_eval <- function(df){
 #-----------------------------------------#
 
 cor_eval <- function(df){
+  '
+  Purpose: Helper function for calculating Pearsons Correlation Coefficient
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  Pearsons R
+  '
   pearson_r <- cor(
     as.numeric(df$predicted),
     as.numeric(df$observed),
@@ -90,7 +165,22 @@ cor_eval <- function(df){
 
 # from https://www.r-bloggers.com/2021/11/how-to-calculate-jaccard-similarity-in-r-2/
 
-jacard_eval <- function(df){
+jaccard_eval <- function(df){
+  '
+  Purpose: Helper function for calculating Jaccards Similarity Index
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  Jaccards Similarity Index
+  '
   
   # apparently this is not correct for binary data?
   # have to check again
@@ -116,7 +206,22 @@ jacard_eval <- function(df){
 # just to have it in case it is needed
 # also from https://www.r-bloggers.com/2021/11/how-to-calculate-jaccard-similarity-in-r-2/
 
-jacard_distance <- function(df){
+jaccard_distance <- function(df){
+  '
+  Purpose: Helper function for calculating Jaccards Dissimilarity Index
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  Jacards Dissimilarity Index
+  '
   jacard <- jacard_eval(df)
   JAC_DIS <- 1 - jacard
   return(JAC_DIS)
@@ -126,6 +231,21 @@ jacard_distance <- function(df){
 #-----------------------------------------#
 
 sorensen_eval <- function(df){
+  '
+  Purpose: Helper function for calculating Sorensens Similarity Index
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  Sorensens Similarity Index
+  '
   # true positive
   tp <- sum(df$predicted == 1 & df$observed == 1)
   # false positive
@@ -136,4 +256,44 @@ sorensen_eval <- function(df){
   # calc sorensen's
   SOREN <- (2 * tp) / (2 * tp + fp + fn)
   return(SOREN)
+}
+
+# 8 - Function for executing all metrics ##
+#-----------------------------------------#
+
+eval_funcs <- function(df){
+  '
+  Purpose: Helper function for calculating all evaluation metrics
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed
+    
+  
+  Returns:
+  --------------------------
+  List of all evaluation metrics
+  '
+  # AUC
+  AUC <- auc_eval(df)
+  # MAE
+  MAE <- mae_eval(df)
+  # RMSE
+  RMSE <- rmse_eval(df)
+  # TSS
+  TSS <- tss_eval(df)
+  # Pearson R
+  COR <- cor_eval(df)
+  # Jaccards Similarity index
+  JAC <- jaccard_eval(df)
+  # Jaccards Dissimilarity Index
+  DIS <- jaccard_distance(df)
+  # Sorensens Similarity Index
+  SOR <- sorensen_eval(df)
+  
+  return(list(AUC=AUC, MAE=MAE, RMSE=RMSE, TSS=TSS, COR=COR,
+              JAC=JAC, DIS=DIS, SOR=SOR))
 }
