@@ -18,8 +18,13 @@ source(path, echo = TRUE)
 # set seed
 set.seed(2962)
 
+samp_strats <- c("random", "block")
+
 # sourcing the sampling functions
-source(paste0(envrmt$path_src, "/functions/sampling_function.R"))
+for (strat in samp_strats){
+  source(paste0(envrmt$path_src, "/functions/", strat, "_sampling_function.R"))
+}
+#source(paste0(envrmt$path_src, "/functions/sampling_function.R"))
 
 # ================================================================
 # 2. Sampling the presence, absence and background points using the sampling strategies
@@ -48,5 +53,6 @@ params <- expand.grid(
 # loop over all parameters
 lapply(1:nrow(params), function(i){
   #random_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
-  cluster_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=TRUE)
+  #cluster_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=TRUE)
+  block_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
 })

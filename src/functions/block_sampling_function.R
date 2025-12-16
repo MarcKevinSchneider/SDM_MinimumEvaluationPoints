@@ -1,5 +1,5 @@
 #' @name block_sampling_function.R
-#' @date XX.XX.XXXX
+#' @date 16.12.2025
 #' @author Marc Kevin Schneider
 #' @contact Schnei7q@students.uni-marburg.de
 #' 
@@ -101,13 +101,13 @@ block_sampling <- function(species_name, fit, sample_p, iter){
       blocks <- blockCV::cv_spatial(r = landscape,
                                     rows_cols = c(5, 0),
                                     hexagon = F, 
-                                    x = p)
+                                    x = background_points)
     } else {
       # if number is 2 then use 5 vertical columns
       blocks <- blockCV::cv_spatial(r = landscape,
                                     rows_cols = c(0, 5),
                                     hexagon = F, 
-                                    x = p)
+                                    x = background_points)
     }
   } else if (random_num == 3){
     # if number is three then use hexagons with a random size between 200 and 1000
@@ -116,7 +116,7 @@ block_sampling <- function(species_name, fit, sample_p, iter){
     blocks <- blockCV::cv_spatial(r = landscape,
                                   size = hex_size, # random hexagon size 
                                   hexagon = T, # use hexagons
-                                  x = p,
+                                  x = background_points,
                                   k = 5)
   }
   
