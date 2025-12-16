@@ -22,6 +22,12 @@ set.seed(2962)
 # 2. Block Sampling function
 # ================================================================
 
+# WIP FOR NOW!!
+# CURRENTLY CRASHES FOR SOME OF THE BLOCKS ESPECIALLY FOR THE HORIZONTAL AND
+# VERTICAL BLOCKING
+
+# NEED TO FIX THAT
+
 block_sampling <- function(species_name, fit, sample_p, iter){
   '
   Purpose: Samples presence-absence points using a spatial blocking approach
@@ -101,13 +107,15 @@ block_sampling <- function(species_name, fit, sample_p, iter){
       blocks <- blockCV::cv_spatial(r = landscape,
                                     rows_cols = c(5, 0),
                                     hexagon = F, 
-                                    x = background_points)
+                                    x = background_points,
+                                    k = 5)
     } else {
       # if number is 2 then use 5 vertical columns
       blocks <- blockCV::cv_spatial(r = landscape,
                                     rows_cols = c(0, 5),
                                     hexagon = F, 
-                                    x = background_points)
+                                    x = background_points,
+                                    k = 5)
     }
   } else if (random_num == 3){
     # if number is three then use hexagons with a random size between 200 and 1000
