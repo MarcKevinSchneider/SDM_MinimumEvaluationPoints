@@ -48,7 +48,18 @@ random_sampling <- function(species_name, fit, sample_p, iter){
   A clustered presence-absence dataset and a background dataset
   
   '
+  
+  # 1. Ensuring data structure
+  #--------------------------------------------------------
+  
+  species_name <- as.character(species_name)
   fit <- as.character(fit)
+  sample_p <- as.numeric(sample_p)
+  iter <- as.character(iter)
+  
+  
+  # 2. Correctly reading and preparing the data
+  #--------------------------------------------------------
   
   # reading the species and landscape data
   species <- readRDS(paste0(envrmt$path_VirtualSpecies, "/", species_name, ".rds"))
@@ -64,11 +75,18 @@ random_sampling <- function(species_name, fit, sample_p, iter){
   # multiply by two to get equal amounts of presence and absence points
   sample_p_2 = sample_p * 2
   
+  # 3. Sampling the presence data
+  #--------------------------------------------------------
+  
   # sampling the same amount of presence and absence data points
   pres_abs_points <- sampleOccurrences(presence, n=sample_p_2, 
                                        type="presence-absence", replacement=FALSE,
                                        sample.prevalence=0.5)
   #print(pres_abs_points)
+  
+  # 4. Formatting the presence data
+  #--------------------------------------------------------
+  
   # convert to dataframe
   pres_abs_df <- as.data.frame(pres_abs_points$sample.points)
   # convert to stars vector object
@@ -78,9 +96,15 @@ random_sampling <- function(species_name, fit, sample_p, iter){
                               crs = terra::crs(landscape),remove = F)
   
   
+  # 5. Sampling the background data
+  #--------------------------------------------------------
+  
   # sampling the 10,000 bkg points
   background_points <- sf::st_as_sf(as.data.frame(predicts::backgroundSample(mask=landscape, n=10000)), 
                                     crs=terra::crs(landscape), coords=c("x","y"), remove=F)
+  
+  # 6. Extracting the landscape data
+  #--------------------------------------------------------
   
   # extracting the data for the background points
   bg_extr <- terra::extract(landscape, background_points)
@@ -92,6 +116,9 @@ random_sampling <- function(species_name, fit, sample_p, iter){
   #print(species_data_compl)
   
   sample_p <- as.character(sample_p)
+  
+  # 7. Saving the data
+  #--------------------------------------------------------
   
   # creating directory for the presence absence data
   dir_pres <- paste0(envrmt$path_pre_abs_points, "/Random/", species_name, "/", sample_p)
