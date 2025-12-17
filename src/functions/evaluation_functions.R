@@ -186,11 +186,7 @@ jaccard_eval <- function(df){
   Jaccards Similarity Index
   '
   
-  # apparently this is not correct for binary data?
-  # have to check again
-  #intersection = length(intersect(df$Predicted, df$Observed))
-  #union = length(df$Predicted) + length(df$Observed) - intersection
-  #JAC <- intersection/union
+  # from https://www.davidzeleny.net/anadat-r/doku.php/en:similarity
   
   # true positive
   tp <- sum(df$Predicted == 1 & df$Observed == 1)
@@ -209,7 +205,7 @@ jaccard_eval <- function(df){
 #-----------------------------------------#
 
 # just to have it in case it is needed
-# also from https://www.r-bloggers.com/2021/11/how-to-calculate-jaccard-similarity-in-r-2/
+# from https://www.r-bloggers.com/2021/11/how-to-calculate-jaccard-similarity-in-r-2/
 
 jaccard_distance <- function(df){
   '
@@ -252,6 +248,8 @@ sorensen_eval <- function(df){
   --------------------------
   Sorensens Similarity Index
   '
+  # from https://www.davidzeleny.net/anadat-r/doku.php/en:similarity
+  
   # true positive
   tp <- sum(df$Predicted == 1 & df$Observed == 1)
   # false positive
