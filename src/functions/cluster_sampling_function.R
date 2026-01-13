@@ -19,21 +19,54 @@ source(path, echo = FALSE) # echo set to false here to stop the script from prin
 set.seed(2962)
 
 # ================================================================
-# 2. Cluster Sampling function
+# 2. Cluster environmentally once and save locally
 # ================================================================
 
+# path to bioclim variables
+bioclim_path  <- paste0(envrmt$path_data, "/variables.tif")
 
-cluster_sampling <- function(species_name, fit, sample_p, iter, plot=FALSE){
+# new folder for the environmental clusters
+cluster_dir   <- paste0(envrmt$path_data, "/env_clusters")
+if (!dir.exists(cluster_dir)) dir.create(cluster_dir, recursive = TRUE)
+
+# load bioclim
+bioclim <- terra::rast(bioclim_path)
+
+# convert raster to dataframe
+bioclim_df <- as.data.frame(bioclim, xy = TRUE, na.rm = TRUE)
+
+# scale environmental variables once
+env_scaled <- scale(bioclim_df[, -(1:2)])
+
+# template raster
+template <- bioclim[[1]]
+values(template) <- NA
+
+# loop over k from 1 to 5 since 5 is max and below 5 is only used when n is below 5
+for (k in 1:5) {
+  # kmeans clustering
+  km <- kmeans(env_scaled, centers = k)
+  
+  # create cluster raster
+  cluster_rast <- template
+  
+  # assigning the cluster ids to the cells of the raster
+  idx <- cellFromXY(cluster_rast, bioclim_df[, c("x", "y")])
+  cluster_rast[idx] <- km$cluster
+  
+  # save locally
+  writeRaster(cluster_rast, 
+              filename = paste0(cluster_dir, "/cluster_k_", k, ".tif"),overwrite = TRUE)
+}
+
+# ================================================================
+# 3. Cluster Sampling function
+# ================================================================
+
+cluster_sampling <- function(species_name, fit, sample_p, iter, plot = FALSE){
   '
-  Purpose: Samples based on k-fold clustering
+  Purpose: Samples presence-absence points using an environmental clusters approach
   
-  Work-In-Progress!!!
-  
-  Issue: Calculates the environmental clusters based on the bioclim variables
-         but then samples randomly within each cluster
-  
-  As a result the data is then randomly distributed again; probably need to change
-  it so that the points are then sampled close to the cluster center or smth
   
   Parameters:
   ----------------------------
@@ -51,287 +84,179 @@ cluster_sampling <- function(species_name, fit, sample_p, iter, plot=FALSE){
     What iteration the code is on
     
   plot: bool
-    Whether or not to plot where the presence and absence points are
+    Decides whether the presence-absence points should get plotted or not
     
   
   Returns:
   ---------------------------
-  A clustered presence-absence dataset and a background dataset
+  A presence-absence dataset with environmental clusters
   
   '
   
+  # 1. Ensuring data structure
+  #--------------------------------------------------------
+  species_name <- as.character(species_name)
   fit <- as.character(fit)
+  sample_p <- as.numeric(sample_p)
+  iter <- as.character(iter)
   
-  # load species and landscape data
+  
+  # 2. Correctly reading the data
+  #--------------------------------------------------------
+  
+  # reading the species and landscape data
   species <- readRDS(paste0(envrmt$path_VirtualSpecies, "/", species_name, ".rds"))
-  landscape <- terra::rast(paste0(envrmt$path_ADM, "/", species_name, "/", 
+  landscape <- terra::rast(paste0(envrmt$path_ADM, "/", species_name, "/",
                                   species_name, "_Fit_", fit, ".tif"))
   
-  # load bioclim variables for clustering
-  bioclim <- terra::rast(paste0(envrmt$path_data, "/", "variables.tif"))
+  # trim to remove NAs to the east of the study area
+  landscape <- terra::trim(landscape)
   
-  # extracting the occurrence data
   presence <- terra::unwrap(species[[4]])
   
-  # choose number of clusters (folds)
-  # if below sample size < 5 just use the number of sample points as folds
+  
+  # 3. Determine number of k 
+  #--------------------------------------------------------
+  
+  # if below 5 simply use the sample size
+  # if above 5 use the 5 clusters
   if (sample_p <= 5) {
     k_folds <- sample_p
-    # if sample size is above 5 just use k = 5
   } else {
     k_folds <- 5
   }
   
-  # create environmental clusters for all pixels
-  #print("Clustering environmental space...")
-  
-  # convert bioclim raster to data frame of cell centers
-  bioclim_df <- as.data.frame(bioclim, xy = TRUE, na.rm = TRUE)
-  
-  # run k-means clustering on environmental variables
-  # based on the amount of k folds selected 
-  km <- kmeans(scale(bioclim_df[, -(1:2)]), centers = k_folds)
-  
-  # extract clusters and add to the bioclim dataframe
-  bioclim_df$cluster <- km$cluster
-  
-  # convert back to raster with cluster IDs
-  cluster_rast <- terra::rast(bioclim[[1]])
-  values(cluster_rast) <- NA
-  
-  # map IDs to raster cells
-  idx <- cellFromXY(cluster_rast, bioclim_df[, c("x","y")])
-  cluster_rast[idx] <- bioclim_df$cluster
-  
-  # find all presence cells
-  presence_cells <- which(values(presence) == 1)
-  
-  # extract x/y for those cells
-  coords <- terra::xyFromCell(presence, presence_cells)
-  
-  # build presence dataframe
-  pres_coords <- data.frame(
-    x = coords[,1],
-    y = coords[,2],
-    presence = 1
-  )
-  
-  # convert the presence points to a sf object
-  pres_coords_sf <- sf::st_as_sf(pres_coords,
-                                 coords = c("x","y"),
-                                 crs = terra::crs(landscape),
-                                 remove = FALSE)
-  
-  # assing each presence point to an environmental cluster
-  pres_clusters <- terra::extract(cluster_rast, pres_coords_sf)[,2]
-  pres_coords_sf$cluster <- pres_clusters
   
   
-  print("Sampling presence-absence within clusters...")
+  # 4. Load precomputed clusters
+  #--------------------------------------------------------
   
-  # presence sample size per cluster
-  pres_per_cluster <- ceiling(sample_p / k_folds)
+  # load the cluster tif
+  cluster_rast <- terra::rast(paste0(envrmt$path_data,
+                                     "/env_clusters/cluster_k_", k_folds, ".tif"))
   
-  # sample within the clusters
-  #pres_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
-  # subset presence points belonging to this cluster
-  #  pts <- pres_coords_sf[pres_coords_sf$cluster == cl, ]
-  #  if (nrow(pts) == 0) return(NULL)
-  # sample the requested number of points (or all if fewer exist)
-  #  pts[sample(seq_len(nrow(pts)), 
-  #             size = min(pres_per_cluster, nrow(pts)), 
-  #             replace = FALSE), ]
-  #}))
+  # ensure alignment
+  cluster_rast <- terra::resample(cluster_rast, landscape, method = "near")
   
-  # i actually dont know if this works properly???
-  # this is supposed to sample within clusters, weighted toward the centroid
-  # of each cluster to have a biased distribution
-  pres_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
-    
-    # subset presence points belonging to this cluster
-    pts <- pres_coords_sf[pres_coords_sf$cluster == cl, ]
-    if (nrow(pts) == 0) return(NULL)
-    
-    # extract xy coords
-    xy <- sf::st_coordinates(pts)
-    
-    # compute centroid for this cluster
-    centroid <- colMeans(xy)
-    
-    # inverse distance of each point to the centroid
-    d <- sqrt((xy[,1] - centroid[1])^2 + (xy[,2] - centroid[2])^2)
-    
-    # convert distances into sampling probabilities (closer = higher prob)
-    prob <- 1 / (d + 1e-6)  # avoid division by zero
-    prob <- prob / sum(prob)  # normalize
-    
-    # sample using weighted probabilities
-    pts[sample(seq_len(nrow(pts)),
-               size = min(pres_per_cluster, nrow(pts)),
-               replace = FALSE,
-               prob = prob), ]
-  }))
+
+  # 5. Select in which clusters should be sampled
+  #--------------------------------------------------------  
+  n_sel <- min(3, k_folds)
+  sel_clusters <- sample(1:k_folds, n_sel)
   
-  # now absence sampling inside clusters
-  absence_cells <- which(terra::values(presence) == 0)
   
-  # also extract x/y for absence cells
-  abs_xy <- terra::xyFromCell(presence, absence_cells)
+  # 6. Restrict presence and absence to rasters
+  #-------------------------------------------------------- 
   
-  # same structure as for the presence data
-  abs_coords <- data.frame(
-    x = abs_xy[,1],
-    y = abs_xy[,2],
-    presence = 0
-  )
+  # filter for presence and absence cells
+  pres_cells <- which(values(presence) == 1)
+  abs_cells  <- which(values(presence) == 0)
   
-  # absence points to sf
-  abs_coords_sf <- sf::st_as_sf(abs_coords,
-                                coords=c("x","y"),
-                                crs=terra::crs(landscape),
-                                remove=FALSE)
+  # filter for clusters
+  pres_clusters <- values(cluster_rast)[pres_cells]
+  abs_clusters  <- values(cluster_rast)[abs_cells]
   
-  # assign clusters to absence points
-  abs_clusters <- terra::extract(cluster_rast, abs_coords_sf)[,2]
-  abs_coords_sf$cluster <- abs_clusters
+  # filter for the selected clusters
+  pres_cells_sel <- pres_cells[pres_clusters %in% sel_clusters]
+  abs_cells_sel  <- abs_cells[abs_clusters %in% sel_clusters]
   
-  # sample absence points within each cluster
-  #abs_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
-  # subset absence points belonging to this cluster
-  #pts <- abs_coords_sf[abs_coords_sf$cluster == cl, ]
-  #if (nrow(pts) == 0) return(NULL)
-  # sample the requested number of points (or all if fewer exist)
-  #pts[sample(seq_len(nrow(pts)), 
-  #           size = min(pres_per_cluster, nrow(pts)), 
-  #            replace = FALSE), ]
-  #}))
+
   
-  abs_sample <- do.call(rbind, lapply(1:k_folds, function(cl){
-    
-    # subset presence points belonging to this cluster
-    pts <- abs_coords_sf[abs_coords_sf$cluster == cl, ]
-    
-    print(sum(is.na(sf::st_coordinates(pts))))
-    print(sum(is.na(pts$cluster)))
-    
-    if (nrow(pts) == 0) return(NULL)
-    
-    # extract xy coords
-    xy <- sf::st_coordinates(pts)
-    
-    # compute centroid for this cluster
-    centroid <- colMeans(xy)
-    
-    # inverse distance of each point to the centroid
-    d <- sqrt((xy[,1] - centroid[1])^2 + (xy[,2] - centroid[2])^2)
-    
-    # convert distances into sampling probabilities (closer = higher prob)
-    prob <- 1 / (d + 1e-6)  # avoid division by zero
-    prob <- prob / sum(prob)  # normalize
-    
-    # sample using weighted probabilities
-    pts[sample(seq_len(nrow(pts)),
-               size = min(pres_per_cluster, nrow(pts)),
-               replace = FALSE,
-               prob = prob), ]
-  }))
+  # 7. Sample presence absence points
+  #-------------------------------------------------------- 
   
-  # set observed to 1 or 0 depending on if the data is presence
-  # or absence
-  pres_sample$Observed <- 1
-  abs_sample$Observed <- 0
+  # number of presence points
+  n_pres <- sample_p
+  # absence points is the same
+  n_abs  <- sample_p
   
-  # bind both dataframes
-  pres_abs_sf <- rbind(pres_sample, abs_sample)
+  # sample the presence points
+  pres_sample_cells <- sample(pres_cells_sel,
+                              size = min(n_pres, length(pres_cells_sel)),replace = FALSE)
   
-  # extract environmental values 
+  # sample the absence points
+  abs_sample_cells <- sample(abs_cells_sel,
+                             size = min(n_abs, length(abs_cells_sel)),replace = FALSE)
+  
+
+  
+  # 8. Convert to sf
+  #-------------------------------------------------------- 
+  
+  # reconstruct to grid
+  pres_xy <- terra::xyFromCell(presence, pres_sample_cells)
+  abs_xy  <- terra::xyFromCell(presence, abs_sample_cells)
+  
+  # convert to dataframe
+  # for presence
+  pres_df <- data.frame(x = pres_xy[,1],y = pres_xy[,2],Observed = 1)
+  
+  # and for absence
+  abs_df <- data.frame(x = abs_xy[,1],y = abs_xy[,2],Observed = 0)
+  
+  # bind both
+  pres_abs_df <- rbind(pres_df, abs_df)
+  
+  
+  # to sf 
+  pres_abs_sf <- sf::st_as_sf(pres_abs_df,coords = c("x", "y"),
+                              crs = terra::crs(landscape),remove = FALSE)
+  
+  # add cluster IDs
+  pres_abs_sf$cluster <- terra::extract(cluster_rast, pres_abs_sf)[,2]
+  
+
+  
+  # 9. Extract layer values
+  #--------------------------------------------------------
+  
   species_data_extr <- terra::extract(landscape, pres_abs_sf)
   species_data_compl <- cbind(pres_abs_sf, species_data_extr)
   
-  # if plot is set to true then this will plot the presence and absence samples
-  # for all clusters showing which point belongs to which cluster
-  if (plot == TRUE){
-    # convert a light-resolution landscape raster to df so the plot isn't gigantic
+
+  
+  # 10. Optional plotting
+  #--------------------------------------------------------
+  
+  if (plot) {
+    
     land_df <- as.data.frame(landscape, xy = TRUE)
     colnames(land_df)[3] <- "value"
     
-    # presence vs absence as a data.frame for ggplot
-    pa_df <- data.frame(
-      x = pres_abs_sf$x,
-      y = pres_abs_sf$y,
-      Observed = pres_abs_sf$Observed
-    )
-    
-    # plot
     p <- ggplot() +
-      geom_raster(data = land_df, aes(x = x, y = y, fill = value), alpha = 0.4) +
-      scale_fill_viridis_c(option = "C") +
-      # all presence samples
+      geom_raster(data = land_df,
+                  aes(x = x, y = y, fill = value),
+                  alpha = 0.4) +
+      scale_fill_viridis_c() +
       geom_point(
-        data = pa_df[pa_df$Observed == 1, ],
-        aes(x = x, y = y),
-        color = "red",
+        data = pres_abs_sf,
+        aes(x = x, y = y, color = factor(cluster),
+            shape = factor(Observed)),
         size = 2
       ) +
-      # all absence samples
-      geom_point(
-        data = pa_df[pa_df$Observed == 0, ],
-        aes(x = x, y = y),
-        color = "blue",
-        size = 2,
-        alpha = 0.6
-      ) +
-      labs(
-        title = paste0("Cluster-based Sampling: ", species_name,
-                       " | Fit=", fit, " | Iteration=", iter),
-        subtitle = "Red = Presence samples | Blue = Absence samples"
-      ) +
+      scale_color_brewer(palette = "Set1") +
       coord_equal() +
+      labs(
+        title = paste0("Cluster-based blocked sampling: ", species_name),
+        subtitle = paste("Clusters:", paste(sel_clusters, collapse = ", ")),
+        color = "Cluster",
+        shape = "Observed"
+      ) +
       theme_minimal()
     
-    pa_df$cluster <- pres_abs_sf$cluster
-    
-    # colors based on the cluster
-    p <- p + 
-      geom_point(
-        data = pa_df,
-        aes(x = x, y = y, color = factor(cluster)),
-        size = 2
-      ) +
-      scale_color_brewer(palette = "Set1")
-    
     print(p)
-  } else {
-    NULL
   }
   
-  # extract the 10,000 background points
-  background_points <- sf::st_as_sf(
-    as.data.frame(predicts::backgroundSample(mask = landscape, n = 10000)),
-    crs = terra::crs(landscape), 
-    coords = c("x","y"), 
-    remove = FALSE
-  )
+
   
-  bg_extr <- terra::extract(landscape, background_points)
-  background_points <- cbind(background_points, bg_extr)
-  
+  # 11. Save output
+  #--------------------------------------------------------
   
   sample_p_char <- as.character(sample_p)
   
-  # directories
-  dir_pres <- paste0(envrmt$path_pre_abs_points, "/Cluster/", species_name, "/", sample_p_char)
-  dir_bkg  <- paste0(envrmt$path_bkg_points, "/Cluster/", species_name, "/", sample_p_char)
-  
+  dir_pres <- paste0(envrmt$path_pre_abs_points,"/Cluster/", species_name, "/", sample_p_char)
   if (!dir.exists(dir_pres)) dir.create(dir_pres, recursive = TRUE)
-  if (!dir.exists(dir_bkg)) dir.create(dir_bkg, recursive = TRUE)
   
-  # save presence absence data
-  sf::write_sf(species_data_compl, paste0(
-    dir_pres, "/", species_name, "_Fit_", fit, "_Iteration_", iter, "_Pres_Abs.gpkg"))
-  # save background data
-  sf::write_sf(background_points, paste0(
-    dir_bkg, "/", species_name, "_Fit_", fit, "_Iteration_", iter, "_Background.gpkg"))
-  
-  print(paste0("Cluster-based sampling saved for ", species_name, " (n = ", sample_p, ")"))
+  sf::write_sf(species_data_compl, paste0(dir_pres, "/", species_name, "_Fit_", fit,
+           "_Iteration_", iter, "_Pres_Abs.gpkg"))
 }

@@ -22,12 +22,6 @@ set.seed(2962)
 # 2. Block Sampling function
 # ================================================================
 
-# WIP FOR NOW!!
-# CURRENTLY CRASHES FOR SOME OF THE BLOCKS ESPECIALLY FOR THE HORIZONTAL AND
-# VERTICAL BLOCKING
-
-# NEED TO FIX THAT
-
 block_sampling <- function(species_name, fit, sample_p, iter){
   '
   Purpose: Samples presence-absence points using a spatial blocking approach
@@ -71,6 +65,7 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   landscape <- terra::rast(paste0(envrmt$path_ADM, "/", species_name, "/", species_name,
                                   "_", "Fit_", fit, ".tif"))
   
+  # trim to remove NAs to the east of the study area
   landscape <- terra::trim(landscape)
   
   bck_path <- paste0(envrmt$path_bkg_points, "/Random/", species_name, "/", species_name, 
