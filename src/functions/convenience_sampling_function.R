@@ -21,3 +21,7 @@ set.seed(2962)
 # ================================================================
 # 2. Convenience Sampling function
 # ================================================================
+
+conv_sampling <- function(species_name, fit, sample_p, iter){
+  
+}

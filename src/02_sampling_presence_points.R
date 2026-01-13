@@ -18,7 +18,7 @@ source(path, echo = TRUE)
 # set seed
 set.seed(2962)
 
-samp_strats <- c("random", "block")
+samp_strats <- c("random", "block", "cluster")
 
 # sourcing the sampling functions
 for (strat in samp_strats){
@@ -71,10 +71,13 @@ lapply(1:nrow(params), function(i){
 # ================================================================
 # 5. Sampling the presence-absence points using the sampling strategies
 # ================================================================
+for (strat in samp_strats){
+  source(paste0(envrmt$path_src, "/functions/", strat, "_sampling_function.R"))
+}
 
 # loop over all parameters
 lapply(1:nrow(params), function(i){
   #random_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
-  #cluster_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=TRUE)
+  cluster_sampling_2(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=TRUE)
   #block_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
 })

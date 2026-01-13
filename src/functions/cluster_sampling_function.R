@@ -165,18 +165,13 @@ cluster_sampling <- function(species_name, fit, sample_p, iter, plot = FALSE){
   # 7. Sample presence absence points
   #-------------------------------------------------------- 
   
-  # number of presence points
-  n_pres <- sample_p
-  # absence points is the same
-  n_abs  <- sample_p
-  
   # sample the presence points
   pres_sample_cells <- sample(pres_cells_sel,
-                              size = min(n_pres, length(pres_cells_sel)),replace = FALSE)
+                              size = min(sample_p, length(pres_cells_sel)),replace = FALSE)
   
   # sample the absence points
   abs_sample_cells <- sample(abs_cells_sel,
-                             size = min(n_abs, length(abs_cells_sel)),replace = FALSE)
+                             size = min(sample_p, length(abs_cells_sel)),replace = FALSE)
   
 
   

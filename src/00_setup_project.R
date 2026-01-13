@@ -10,8 +10,6 @@
 #' 
 #' Sets the folder structure and loads the most important packages.
 
-
-
 # ================================================================
 # 1. Load required packages
 # ================================================================
@@ -33,6 +31,7 @@ library(Metrics)          # for the evaluation metrics
 library(tidyverse)        # general functions
 library(geodata)          # for the download of the border data
 library(PresenceAbsence)  # for the binary cutoff of the predictions
+library(osmdata)          # for the street and population data
 
 # ================================================================
 # 2. Folder structure
