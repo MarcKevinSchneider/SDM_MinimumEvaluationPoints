@@ -43,12 +43,26 @@ params <- expand.grid(
 test_abs <- sf::read_sf(paste0(envrmt$path_pre_abs_points, 
                     "/Random/VS01/10/VS01_Fit_0.1_Iteration_1_Pres_Abs.gpkg"))
 
-test_abs <- test_abs %>% 
-  filter(Observed == 1)
+
+thresh.dat <- data.frame(ID=seq_len(length(test_abs$Observed)), 
+                         obs = test_abs$Observed,
+                         pred = test_abs$lyr.1)
+
+thresh.mat <- PresenceAbsence::optimal.thresholds(DATA= thresh.dat, 
+                                                  req.sens=0.85, 
+                                                  req.spec = 0.85, 
+                                                  FPC=1, FNC=1)
+
+thresh <- thresh.mat[thresh.mat$Method=='MaxSens+Spec',2]
+
+cmx.opt <- PresenceAbsence::cmx(DATA= thresh.dat, threshold=thresh)
+
+#test_abs <- test_abs %>% 
+#  filter(Observed == 1)
 
 # binary classification using the extracted values from each ADM
 # if above 0.5 classify as presence if below as absence
-test_abs$Predicted <- ifelse(test_abs$lyr.1 >= 0.5, 1, 0)
+test_abs$Predicted <- ifelse(test_abs$lyr.1 >= thresh, 1, 0)
 
 
 test_bck <- sf::read_sf(paste0(envrmt$path_bkg_points, 
@@ -128,8 +142,29 @@ results <- lapply(1:nrow(params), function(i){
   #presences <- pres_abs %>% filter(Observed == 1)
   #absences <- pres_abs %>% filter(Observed == 0)
   
+  # now we convert the ADM layer for each presence absence dataset to a "prediction"
+  # from https://gitup.uni-potsdam.de/macroecology/mecofun/-/blob/master/R/evalSDM.R?ref_type=heads
+  # uses the code from parts of the evalSDM function
+  
+  # convert the two presences sf to a dataframe
+  thresh.dat <- data.frame(ID=seq_len(length(presences$Observed)), 
+                           obs = presences$Observed,
+                           pred = presences$lyr.1)
+  
+  # calculate the thresholds with different methods
+  thresh.mat <- PresenceAbsence::optimal.thresholds(DATA= thresh.dat, 
+                                                    req.sens=0.85, 
+                                                    req.spec = 0.85, 
+                                                    FPC=1, FNC=1)
+  
+  # select the threshold which maximumes sensitivity and specificity
+  thresh <- thresh.mat[thresh.mat$Method=="MaxSens+Spec",2]
+  
+  #cmx.opt <- PresenceAbsence::cmx(DATA= thresh.dat, threshold=thresh)
+  
   # binary classification of presence absence depending on the values of the ADM
-  presences$Predicted <- ifelse(presences$lyr.1 >= 0.5, 1, 0)
+  # using the threshold calculated above
+  presences$Predicted <- ifelse(presences$lyr.1 >= thresh, 1, 0)
 
   # have to do this since we are also extracting the real distribution data now
   #colnames(pa_raw)[colnames(pa_raw) == "Observed"] <- "Predicted"
@@ -155,11 +190,12 @@ results <- lapply(1:nrow(params), function(i){
   
   # store data abou tthe run and metrics in a dataframe
   data.frame(
-    strat = params$strat[i],
-    sp    = params$sp[i],
-    n     = params$n[i],
-    fit   = params$fit[i],
-    iter  = params$iter[i],
+    strat = params$strat[i], # sampling strategy
+    sp    = params$sp[i],    # species
+    n     = params$n[i],     # number of sample points
+    fit   = params$fit[i],   # fit of the ADM
+    iter  = params$iter[i],  # number of iteration
+    thresh = thresh,         # chosen threshold
     
     AUC  = metrics$AUC,
     MAE  = metrics$MAE,

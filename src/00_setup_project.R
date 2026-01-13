@@ -11,6 +11,7 @@
 #' Sets the folder structure and loads the most important packages.
 
 
+
 # ================================================================
 # 1. Load required packages
 # ================================================================
@@ -31,6 +32,7 @@ library(blockCV)          # for some of the sampling strategies
 library(Metrics)          # for the evaluation metrics 
 library(tidyverse)        # general functions
 library(geodata)          # for the download of the border data
+library(mecofun)          # for the binary cutoff of the predictions
 
 # ================================================================
 # 2. Folder structure
