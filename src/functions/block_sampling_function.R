@@ -71,6 +71,8 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   landscape <- terra::rast(paste0(envrmt$path_ADM, "/", species_name, "/", species_name,
                                   "_", "Fit_", fit, ".tif"))
   
+  landscape <- terra::trim(landscape)
+  
   bck_path <- paste0(envrmt$path_bkg_points, "/Random/", species_name, "/", species_name, 
                      "_Fit_", fit, "_Background.gpkg")
   
@@ -91,12 +93,17 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   # should be used for the block sampling
   random_num <- as.numeric(sample(1:3, 1))
   
+  # random size of the squares or hexagons if squares and hexagons are chosen
+  hex_size <- as.numeric(sample(c(150000, 200000, 250000, 300000), size=1))
+
+  
   if (random_num == 1){
-    # if number is one then it just uses squares 
+    # if number is one then it just uses squares with a random size between 150k and 300k
     blocks <- blockCV::cv_spatial(r = landscape,
                                   hexagon = FALSE,
                                   x = background_points,
-                                  k = 5)
+                                  k = 5,
+                                  size = hex_size)
   } else if (random_num == 2){
     # if number is two then use horizontal or vertical blocking
     # in this case a number between one and two is chosen
@@ -111,16 +118,15 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                     k = 5)
     } else {
       # if number is 2 then use 5 vertical columns
+      # fsr though row_cols has to be set to 0, 6 otherwise the code crashes
       blocks <- blockCV::cv_spatial(r = landscape,
-                                    rows_cols = c(0, 5),
+                                    rows_cols = c(0, 6),
                                     hexagon = FALSE, 
                                     x = background_points,
                                     k = 5)
     }
   } else if (random_num == 3){
-    # if number is three then use hexagons with a random size between 200 and 1000
-    # random hexagon size
-    hex_size <- as.numeric(sample(c(200, 400, 600, 800, 1000), size=1))
+    # if number is three then use hexagons with a random size between 150k and 300k
     blocks <- blockCV::cv_spatial(r = landscape,
                                   size = hex_size, 
                                   hexagon = TRUE,
@@ -128,7 +134,7 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                   k = 5)
   }
   
-  print("Blocked the data...")
+  #print("Blocked the data...")
   
   # 4. Sampling the occurrence data from the selected folds
   #--------------------------------------------------------
@@ -145,7 +151,7 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                        sample.prevalence=0.5, 
                                        sampling.area = samplingArea)
   
-  print("Sampled only in the selected folds...")
+  #print("Sampled only in the selected folds...")
   
   
   # 5. Final formatting of the data
@@ -165,7 +171,7 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   
   sample_p <- as.character(sample_p)
   
-  print("Extracted the layer data...")
+  #print("Extracted the layer data...")
   
   # 6. Saving the data
   #--------------------------------------------------------
