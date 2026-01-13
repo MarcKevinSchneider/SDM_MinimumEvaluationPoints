@@ -71,6 +71,13 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   landscape <- terra::rast(paste0(envrmt$path_ADM, "/", species_name, "/", species_name,
                                   "_", "Fit_", fit, ".tif"))
   
+  bck_path <- paste0(envrmt$path_bkg_points, "/Random/", species_name, "/", species_name, 
+                     "_Fit_", fit, "_Background.gpkg")
+  
+  background_points <- sf::read_sf(bck_path)
+  
+  #print(background_points)
+  
   # extracting the occurrence data
   presence <- terra::unwrap(species[[4]])
   
@@ -78,14 +85,7 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   sample_p_2 = sample_p * 2
   
   
-  # 3. Sampling the background data
-  #--------------------------------------------------------
-  
-  # sampling the 10,000 bkg points
-  background_points <- sf::st_as_sf(as.data.frame(predicts::backgroundSample(mask=landscape, n=10000)), 
-                                    crs=terra::crs(landscape), coords=c("x","y"), remove=F)
-  
-  # 4. Choosing the blocking strategy
+  # 3. Choosing the blocking strategy
   #--------------------------------------------------------
   # random number between 1 and 3 to determine whether bars, squares or hexagons
   # should be used for the block sampling
@@ -106,14 +106,14 @@ block_sampling <- function(species_name, fit, sample_p, iter){
       # if number is 1 then use 5 horizontal rows
       blocks <- blockCV::cv_spatial(r = landscape,
                                     rows_cols = c(5, 0),
-                                    hexagon = F, 
+                                    hexagon = FALSE, 
                                     x = background_points,
                                     k = 5)
     } else {
       # if number is 2 then use 5 vertical columns
       blocks <- blockCV::cv_spatial(r = landscape,
                                     rows_cols = c(0, 5),
-                                    hexagon = F, 
+                                    hexagon = FALSE, 
                                     x = background_points,
                                     k = 5)
     }
@@ -122,13 +122,15 @@ block_sampling <- function(species_name, fit, sample_p, iter){
     # random hexagon size
     hex_size <- as.numeric(sample(c(200, 400, 600, 800, 1000), size=1))
     blocks <- blockCV::cv_spatial(r = landscape,
-                                  size = hex_size, # random hexagon size 
-                                  hexagon = T, # use hexagons
+                                  size = hex_size, 
+                                  hexagon = TRUE,
                                   x = background_points,
                                   k = 5)
   }
   
-  # 5. Sampling the occurrence data from the selected folds
+  print("Blocked the data...")
+  
+  # 4. Sampling the occurrence data from the selected folds
   #--------------------------------------------------------
   
   # randomly select three folds that get sampled
@@ -143,8 +145,10 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                        sample.prevalence=0.5, 
                                        sampling.area = samplingArea)
   
+  print("Sampled only in the selected folds...")
   
-  # 6. Final formatting of the data
+  
+  # 5. Final formatting of the data
   #--------------------------------------------------------
   
   # convert to dataframe
@@ -154,10 +158,6 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   pres_abs_sf <- sf::st_as_sf(pres_abs_df, coords = c("x", "y"), 
                               crs = terra::crs(landscape),remove = F)
   
-  # extracting the data for the background points
-  bg_extr <- terra::extract(landscape, background_points)
-  background_points <- cbind(background_points,bg_extr);rm(bg_extr)
-  
   # extracting the data for the presence-points
   species_data_extr <- terra::extract(landscape, pres_abs_sf)
   species_data_compl <- cbind(pres_abs_sf, species_data_extr)
@@ -165,7 +165,9 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   
   sample_p <- as.character(sample_p)
   
-  # 7. Saving the data
+  print("Extracted the layer data...")
+  
+  # 6. Saving the data
   #--------------------------------------------------------
   
   # creating directory for the presence absence data
@@ -174,11 +176,5 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   # saving the presence absence data
   sf::write_sf(species_data_compl, paste0(dir_pres, "/", species_name, "_Fit_", 
                                           fit, "_Iteration_", iter, "_Pres_Abs.gpkg"))
-  # creating directory for the background data
-  dir_bkg <- paste0(envrmt$path_bkg_points, "/Block/", species_name, "/", sample_p)
-  if(!dir.exists(dir_bkg)) dir.create(dir_bkg, recursive = TRUE)
-  # saving the background data
-  sf::write_sf(background_points, paste0(dir_bkg, "/", species_name, "_Fit_",
-                                         fit, "_Iteration_", iter, "_Background.gpkg"))
   #print(paste0("Saved species data for n=", sample_p, "!"))
 }
