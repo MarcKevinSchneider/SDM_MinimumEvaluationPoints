@@ -144,7 +144,8 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   pres_abs_points <- sampleOccurrences(presence, n=sample_p_2, 
                                        type="presence-absence", replacement=FALSE,
                                        sample.prevalence=0.5, 
-                                       sampling.area = samplingArea)
+                                       sampling.area = samplingArea, 
+                                       plot=FALSE)
   
   #print("Sampled only in the selected folds...")
   

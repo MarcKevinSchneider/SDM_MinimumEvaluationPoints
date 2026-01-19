@@ -81,7 +81,8 @@ random_sampling <- function(species_name, fit, sample_p, iter){
   # sampling the same amount of presence and absence data points
   pres_abs_points <- sampleOccurrences(presence, n=sample_p_2, 
                                        type="presence-absence", replacement=FALSE,
-                                       sample.prevalence=0.5)
+                                       sample.prevalence=0.5, 
+                                       plot=FALSE)
   #print(pres_abs_points)
   
   # 4. Formatting the presence data
