@@ -18,49 +18,9 @@ source(path, echo = FALSE) # echo set to false here to stop the script from prin
 # set seed
 set.seed(2962)
 
-# ================================================================
-# 2. Cluster environmentally once and save locally
-# ================================================================
-
-# path to bioclim variables
-bioclim_path  <- paste0(envrmt$path_data, "/variables.tif")
-
-# new folder for the environmental clusters
-cluster_dir   <- paste0(envrmt$path_data, "/env_clusters")
-if (!dir.exists(cluster_dir)) dir.create(cluster_dir, recursive = TRUE)
-
-# load bioclim
-bioclim <- terra::rast(bioclim_path)
-
-# convert raster to dataframe
-bioclim_df <- as.data.frame(bioclim, xy = TRUE, na.rm = TRUE)
-
-# scale environmental variables once
-env_scaled <- scale(bioclim_df[, -(1:2)])
-
-# template raster
-template <- bioclim[[1]]
-values(template) <- NA
-
-# loop over k from 1 to 5 since 5 is max and below 5 is only used when n is below 5
-for (k in 1:5) {
-  # kmeans clustering
-  km <- kmeans(env_scaled, centers = k)
-  
-  # create cluster raster
-  cluster_rast <- template
-  
-  # assigning the cluster ids to the cells of the raster
-  idx <- cellFromXY(cluster_rast, bioclim_df[, c("x", "y")])
-  cluster_rast[idx] <- km$cluster
-  
-  # save locally
-  writeRaster(cluster_rast, 
-              filename = paste0(cluster_dir, "/cluster_k_", k, ".tif"),overwrite = TRUE)
-}
 
 # ================================================================
-# 3. Cluster Sampling function
+# 2. Cluster Sampling function
 # ================================================================
 
 cluster_sampling <- function(species_name, fit, sample_p, iter, plot = FALSE){
@@ -205,6 +165,7 @@ cluster_sampling <- function(species_name, fit, sample_p, iter, plot = FALSE){
   # 9. Extract layer values
   #--------------------------------------------------------
   
+  # extracting the data for the presence-points
   species_data_extr <- terra::extract(landscape, pres_abs_sf)
   species_data_compl <- cbind(pres_abs_sf, species_data_extr)
   
@@ -213,6 +174,7 @@ cluster_sampling <- function(species_name, fit, sample_p, iter, plot = FALSE){
   # 10. Optional plotting
   #--------------------------------------------------------
   
+  # if enabled will plot the data with the clusters shown
   if (plot) {
     
     land_df <- as.data.frame(landscape, xy = TRUE)
@@ -248,10 +210,11 @@ cluster_sampling <- function(species_name, fit, sample_p, iter, plot = FALSE){
   #--------------------------------------------------------
   
   sample_p_char <- as.character(sample_p)
-  
+  # creating directory for the presence absence data
   dir_pres <- paste0(envrmt$path_pre_abs_points,"/Cluster/", species_name, "/", sample_p_char)
   if (!dir.exists(dir_pres)) dir.create(dir_pres, recursive = TRUE)
-  
+  # saving the presence absence data
   sf::write_sf(species_data_compl, paste0(dir_pres, "/", species_name, "_Fit_", fit,
            "_Iteration_", iter, "_Pres_Abs.gpkg"))
+  #print(paste0("Saved species data for n=", sample_p, "!"))
 }

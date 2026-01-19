@@ -45,7 +45,7 @@ block_sampling <- function(species_name, fit, sample_p, iter){
   
   Returns:
   ---------------------------
-  A presence-absence dataset with spatial blocking and a random background dataset
+  A presence-absence dataset with spatial blocking
   
   '
   

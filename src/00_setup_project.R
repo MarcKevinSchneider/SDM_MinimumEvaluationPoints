@@ -51,6 +51,8 @@ projectDirList <- c(
   "data/ADM",                 # Artificial Distribution Maps
   "data/pre_abs_points",      # Presence-Absence Points RDS files
   "data/bkg_points",          # Background Points RDS files
+  "data/env_clusters",        # Environmental clusters
+  "data/osm",                 # OpenStreetMap data
   "docs/",
   "run/",
   "tmp",

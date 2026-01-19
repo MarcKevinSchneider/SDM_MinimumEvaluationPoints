@@ -18,7 +18,7 @@ source(path, echo = TRUE)
 # set seed
 set.seed(2962)
 
-samp_strats <- c("random", "block", "cluster")
+samp_strats <- c("random", "block", "cluster", "convenience")
 
 # sourcing the sampling functions
 for (strat in samp_strats){
@@ -78,6 +78,8 @@ for (strat in samp_strats){
 # loop over all parameters
 lapply(1:nrow(params), function(i){
   #random_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
-  cluster_sampling_2(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=TRUE)
+  #cluster_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=TRUE)
   #block_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
+  conv_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
+  
 })
