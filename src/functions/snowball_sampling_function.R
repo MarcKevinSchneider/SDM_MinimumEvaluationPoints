@@ -77,7 +77,7 @@ snowball_sampling <- function(species_name, fit, sample_p, iter){
   
   
   
-  # 2. Initial sampling of two points (one presence and one absence)
+  # 3. Initial sampling of two points (one presence and one absence)
   #--------------------------------------------------------
   
   # initial sampling of one presence and one absence point
@@ -96,7 +96,7 @@ snowball_sampling <- function(species_name, fit, sample_p, iter){
   init_buffer <- sf::st_buffer(init_sf, dist = 250000)
   
   
-  # 3. Using the points for the sampling of the remaining points
+  # 4. Using the points for the sampling of the remaining points
   #--------------------------------------------------------
   
   pres_abs_points <- sampleOccurrences(presence, n=sample_p_2, 
@@ -105,7 +105,7 @@ snowball_sampling <- function(species_name, fit, sample_p, iter){
                                        sampling.area = init_buffer, 
                                        plot=FALSE)
   
-  # 4. Final formatting of the data
+  # 5. Final formatting of the data
   #--------------------------------------------------------
   
   # convert to dataframe
@@ -124,7 +124,7 @@ snowball_sampling <- function(species_name, fit, sample_p, iter){
   
   #print("Extracted the layer data...")
   
-  # 5. Saving the data
+  # 6. Saving the data
   #--------------------------------------------------------
   
   # creating directory for the presence absence data
