@@ -110,28 +110,9 @@ osm_dir <- paste0(envrmt$path_data, "/osm")
 if (!dir.exists(osm_dir)) dir.create(osm_dir, recursive = TRUE)
 sf::write_sf(places_sf,paste0(osm_dir, "/places_osm.gpkg"))
 
-# ================================================================
-# 6. Download the OSM state border data
-# ================================================================
-
-# build query
-state_query <- opq(bbox = bbox, timeout = 180) |>
-  add_osm_feature(key = "boundary", value = "administrative") |>
-  add_osm_feature(key = "admin_level", value = "4")
-
-# download the data
-states_osm <- osmdata_sf(state_query)
-
-# extract border extents, transform, etc.
-states_sf <- states_osm$osm_multipolygons
-states_sf <- sf::st_transform(states_sf, terra::crs(landscape))
-states_sf <- sf::st_crop(states_sf, sf::st_bbox(ext_poly))
-
-# save
-sf::write_sf(states_sf,paste0(osm_dir, "/states_osm.gpkg"))
 
 # ================================================================
-# 7. Download the OSM county border data
+# 6. Download the OSM county border data
 # ================================================================
 
 # build query
@@ -151,28 +132,9 @@ counties_sf <- sf::st_crop(counties_sf, sf::st_bbox(ext_poly))
 sf::write_sf(counties_sf,
              paste0(osm_dir, "/counties_osm.gpkg"))
 
-# ================================================================
-# 8. Download the OSM aboriginal lands border data
-# ================================================================
-
-# build query
-aboriginal_query <- opq(bbox = bbox, timeout = 180) |>
-  add_osm_feature(key = "boundary", value = "aboriginal_lands")
-
-# download the data
-aboriginal_osm <- osmdata_sf(aboriginal_query)
-
-# extract border extents, transform, etc.
-aboriginal_sf <- aboriginal_osm$osm_multipolygons
-aboriginal_sf <- sf::st_transform(aboriginal_sf, terra::crs(landscape))
-aboriginal_sf <- sf::st_crop(aboriginal_sf, sf::st_bbox(ext_poly))
-
-# save
-sf::write_sf(aboriginal_sf,
-             paste0(osm_dir, "/aboriginal_areas_osm.gpkg"))
 
 # ================================================================
-# 9. Download the OSM national park data
+# 7. Download the OSM national park data
 # ================================================================
 
 # build query

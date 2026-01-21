@@ -18,11 +18,6 @@ source(path, echo = FALSE) # echo set to false here to stop the script from prin
 # set seed
 set.seed(2962)
 
-
-for (i in c(1,3,7,12)){
-  
-}
-
 # ================================================================
 # 2. Stratified Sampling function
 # ================================================================
