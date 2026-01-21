@@ -53,6 +53,7 @@ projectDirList <- c(
   "data/bkg_points",          # Background Points RDS files
   "data/env_clusters",        # Environmental clusters
   "data/osm",                 # OpenStreetMap data
+  "data/bioclim_strata",      # Folder for the stratified bioclim layers
   "docs/",
   "run/",
   "tmp",

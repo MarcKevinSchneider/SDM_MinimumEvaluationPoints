@@ -98,14 +98,14 @@ leaveout_sampling <- function(species_name, fit, sample_p, iter){
     
     pres_abs_points <- sampleOccurrences(presence, n = sample_p_2, type = "presence-absence", 
                                          replacement = FALSE, sample.prevalence = 0.5, 
-                                         sampling.area = counties_inc)
+                                         sampling.area = counties_inc, plot=FALSE)
   } else{
     # randomly exclude one of the states
     states_inc <- states |> dplyr::slice_sample(n = 2)
     
     pres_abs_points <- sampleOccurrences(presence, n = sample_p_2, type = "presence-absence", 
                                          replacement = FALSE, sample.prevalence = 0.5, 
-                                         sampling.area = states_inc)
+                                         sampling.area = states_inc, plot=FALSE)
   }
   
   # 4. Final formatting of the data
