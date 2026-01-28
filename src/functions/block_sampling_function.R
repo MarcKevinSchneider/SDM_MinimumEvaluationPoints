@@ -98,7 +98,8 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                   hexagon = FALSE,
                                   x = background_points,
                                   k = 5,
-                                  size = hex_size)
+                                  size = hex_size, progress = FALSE, report = FALSE,
+                                  plot = FALSE)
   } else if (random_num == 2){
     # if number is two then use horizontal or vertical blocking
     # in this case a number between one and two is chosen
@@ -110,7 +111,8 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                     rows_cols = c(5, 0),
                                     hexagon = FALSE, 
                                     x = background_points,
-                                    k = 5)
+                                    k = 5, progress = FALSE, report = FALSE,
+                                    plot = FALSE)
     } else {
       # if number is 2 then use 5 vertical columns
       # fsr though row_cols has to be set to 0, 6 otherwise the code crashes
@@ -118,7 +120,8 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                     rows_cols = c(0, 6),
                                     hexagon = FALSE, 
                                     x = background_points,
-                                    k = 5)
+                                    k = 5, progress = FALSE, report = FALSE,
+                                    plot = FALSE)
     }
   } else if (random_num == 3){
     # if number is three then use hexagons with a random size between 150k and 300k
@@ -126,7 +129,8 @@ block_sampling <- function(species_name, fit, sample_p, iter){
                                   size = hex_size, 
                                   hexagon = TRUE,
                                   x = background_points,
-                                  k = 5)
+                                  k = 5, progress = FALSE, report = FALSE,
+                                  plot = FALSE)
   }
   
   #print("Blocked the data...")
