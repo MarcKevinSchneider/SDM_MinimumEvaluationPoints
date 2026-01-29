@@ -69,9 +69,6 @@ random_sampling <- function(species_name, fit, sample_p, iter){
   # extracting the occurrence data
   presence <- terra::unwrap(species[[4]])
   
-  #print(presence)
-  #plot(presence)
-  
   # multiply by two to get equal amounts of presence and absence points
   sample_p_2 = sample_p * 2
   

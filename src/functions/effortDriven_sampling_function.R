@@ -115,7 +115,7 @@ effort_sampling <- function(species_name, fit, sample_p, iter){
   pres_abs_points <- sampleOccurrences(presence, n = sample_p_2, type = "presence-absence",
                                        replacement = FALSE, sample.prevalence = 0.5, 
                                        bias = "manual", bias.strength = 100,
-                                       weights=pop_density)
+                                       weights=pop_density, plot = FALSE)
   
   
   # 5. Final formatting of the data
