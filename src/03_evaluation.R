@@ -27,10 +27,11 @@ source(paste0(envrmt$path_src, "/functions/evaluation_functions.R"))
 
 # parameters for the presence-absence points
 params <- expand.grid(
-  strat= as.character(c("Random")),
+  strat= as.character(c("Random", "Block", "Cluster", "Convenience", "EffortDriven",
+                        "LeaveOneOut", "Snowball", "Stratified", "Systematic")),
   sp   = as.character(c("VS01")),
-  fit  = as.character(c("0.1", "0.2")),
-  n    = as.character(seq(1, 10, 1)),
+  fit  = as.character(c("0.1", "0.2", "0.3", "0.4", "0.5")),
+  n    = as.character(seq(100, 101, 1)),
   iter = as.character(seq(1,5,1)),
   stringsAsFactors = FALSE
 )
@@ -101,9 +102,9 @@ results <- lapply(1:nrow(params), function(i){
   #--------------------------------------------------------
   
   # construct path for background data
-  bck_path <- paste0(envrmt$path_bkg_points, "/", params$strat[i], "/",
-                     params$sp[i], "/", params$n[i], "/", params$sp[i], "_Fit_", 
-                     params$fit[i], "_Iteration_", params$iter[i], "_Background.gpkg")
+  bck_path <- paste0(envrmt$path_bkg_points, "/Random/",
+                     params$sp[i], "/", params$sp[i], "_Fit_", 
+                     params$fit[i], "_Background.gpkg")
 
   # check if file exists
   if (!file.exists(bck_path)) return(NULL)
