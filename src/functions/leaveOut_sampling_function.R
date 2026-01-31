@@ -18,6 +18,9 @@ source(path, echo = FALSE) # echo set to false here to stop the script from prin
 # set seed
 set.seed(2962)
 
+states <- sf::st_read(paste0(envrmt$path_osm, "/states_australia.gpkg"),
+                      quiet=TRUE)
+
 # ================================================================
 # 2. Leave-Out-Areas Sampling function
 # ================================================================
@@ -100,12 +103,26 @@ leaveout_sampling <- function(species_name, fit, sample_p, iter){
                                          replacement = FALSE, sample.prevalence = 0.5, 
                                          sampling.area = counties_inc, plot=FALSE)
   } else{
-    # randomly exclude one of the states
-    states_inc <- states |> dplyr::slice_sample(n = 2)
+    # randomly sample either NSW or Victoria but always includes ACT
+    random_state <- sample(c("NSW", "VIC"), 1)
     
-    pres_abs_points <- sampleOccurrences(presence, n = sample_p_2, type = "presence-absence", 
-                                         replacement = FALSE, sample.prevalence = 0.5, 
-                                         sampling.area = states_inc, plot=FALSE)
+    if (random_state == "NSW") {
+      states_inc <- states |>
+        dplyr::filter(STE_NAME21 %in% c("New South Wales", "Australian Capital Territory"))
+    } else {
+      states_state <- states |>
+        dplyr::filter(STE_NAME21 %in% c("Victoria", "Australian Capital Territory"))
+    }
+     # sample only in the two selected states
+    pres_abs_points <- sampleOccurrences(
+      presence,
+      n = sample_p_2,
+      type = "presence-absence",
+      replacement = FALSE,
+      sample.prevalence = 0.5,
+      sampling.area = states_inc,
+      plot = FALSE
+    )
   }
   
   # 4. Final formatting of the data
@@ -131,7 +148,7 @@ leaveout_sampling <- function(species_name, fit, sample_p, iter){
   #--------------------------------------------------------
   
   # creating directory for the presence absence data
-  dir_pres <- paste0(envrmt$path_pre_abs_points, "/LeaveOneOut/", species_name, "/", sample_p)
+  dir_pres <- paste0(envrmt$path_pre_abs_points, "/LeaveOut/", species_name, "/", sample_p)
   if(!dir.exists(dir_pres)) dir.create(dir_pres, recursive = TRUE)
   # saving the presence absence data
   sf::write_sf(species_data_compl, paste0(dir_pres, "/", species_name, "_Fit_", 
