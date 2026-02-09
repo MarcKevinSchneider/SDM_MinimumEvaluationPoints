@@ -24,9 +24,8 @@ set.seed(2962)
 
 systematic_sampling <- function(species_name, fit, sample_p, iter){
   '
-  Purpose: Samples presence-absence points using a systematic sampling approach,
+  Purpose: Samples presence-absence points using a precomputed systematic grid
            e.g. it only samples every n-th pixel
-  
   
   Parameters:
   ----------------------------
@@ -39,57 +38,45 @@ systematic_sampling <- function(species_name, fit, sample_p, iter){
     
   sample_p: int
     Number of sample points
-    
+  
   iter: str
     What iteration the code is on
-    
   
   Returns:
   ---------------------------
   A presence-absence dataset with a systematic sampling approach
-  
   '
   
   # 1. Ensuring data structure
-  #--------------------------------------------------------
-  
   species_name <- as.character(species_name)
   fit <- as.character(fit)
   sample_p <- as.numeric(sample_p)
   iter <- as.character(iter)
   
-  # 2. Correctly reading and preparing the data
-  #--------------------------------------------------------
-  
-  # reading the species and landscape data
+  # 2. Read species raster and landscape
   species <- readRDS(paste0(envrmt$path_VirtualSpecies, "/", species_name, ".rds"))
   landscape <- terra::rast(paste0(envrmt$path_ADM, "/", species_name, "/", species_name,
-                                  "_", "Fit_", fit, ".tif"))
-  
-  # extracting the occurrence data
-  presence <- terra::unwrap(species[[4]])
+                                  "_Fit_", fit, ".tif"))
+  presence <- terra::unwrap(species[[4]])  # occurrence layer
   
   # multiply by two to get equal amounts of presence and absence points
   sample_p_2 = sample_p * 2
   
+  # 3. Load the precomputed systematic grid for this sample size
+  grid_file <- paste0(envrmt$path_systematic_grids, "/", species_name, "/", species_name,
+                      "_systematic_grid_n_", sample_p, ".gpkg")
+  grid_pts <- sf::st_read(grid_file, quiet = TRUE)
+  #print("Read the grid...")
   
+  grid_centers <- sf::st_centroid(grid_pts)
   
-  # 3. Preparing the systematic sampling approach
-  #--------------------------------------------------------
-  
-  # read the systematic sampling mask with a 200km spacing
-  syst_poly <- sf::st_read(paste0(envrmt$path_ADM, "/systematic_mask_step_246.gpkg"),
-                           quiet=TRUE)
-  
-  # 4. Sampling the presence data
-  #--------------------------------------------------------
   
   # sampling the same amount of presence and absence data points
   pres_abs_points <- sampleOccurrences(presence, n=sample_p_2, 
                                        type="presence-absence", replacement=FALSE,
                                        sample.prevalence=0.5, 
-                                       sampling.area = syst_poly, 
-                                       plot=FALSE)
+                                       sampling.area = grid_centers, 
+                                       plot=TRUE)
   
   # 5. Formatting the presence data
   #--------------------------------------------------------
@@ -124,4 +111,3 @@ systematic_sampling <- function(species_name, fit, sample_p, iter){
   #print(paste0("Saved species data for n=", sample_p, "!"))
   
 }
-

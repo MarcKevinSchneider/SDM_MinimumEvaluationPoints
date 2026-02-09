@@ -54,6 +54,7 @@ projectDirList <- c(
   "data/env_clusters",        # Environmental clusters
   "data/osm",                 # OpenStreetMap data
   "data/bioclim_strata",      # Folder for the stratified bioclim layers
+  "data/systematic_grids",    # Folder for the systematic grids 
   "docs/",
   "run/",
   "tmp",

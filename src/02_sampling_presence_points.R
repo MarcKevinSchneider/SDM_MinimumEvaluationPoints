@@ -19,7 +19,7 @@ source(path, echo = TRUE)
 set.seed(2962)
 
 samp_strats <- c("random", "block", "cluster", "convenience", "systematic",
-                 "snowball", "leaveOut", "stratified", "effortDriven")
+                 "snowball", "leaveOut", "stratified", "effortDriven", "preferential")
 
 # sourcing the sampling functions
 for (strat in samp_strats){
@@ -36,7 +36,7 @@ source(paste0(envrmt$path_src, "/functions/background_points_sampling.R"))
 params <- expand.grid(
   sp   = as.character(c("VS01", "VS02", "VS03", "VS04", "VS05")),
   fit  = as.character(c("0.1", "0.2", "0.3", "0.4", "0.5")),
-  n    = as.numeric(seq(100, 110, 1)),
+  n    = as.numeric(seq(100, 105, 1)),
   iter = as.numeric(seq(1,5,1)),
   stringsAsFactors = FALSE
 )
@@ -72,12 +72,9 @@ lapply(1:nrow(params), function(i){
 # ================================================================
 # 5. Sampling the presence-absence points using the sampling strategies
 # ================================================================
-for (strat in samp_strats){
-  source(paste0(envrmt$path_src, "/functions/", strat, "_sampling_function.R"))
-}
 
 # loop over all parameters
-lapply(1:nrow(params), function(i){
+'lapply(1:nrow(params), function(i){
   random_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
   cluster_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i], plot=FALSE)
   block_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
@@ -87,4 +84,117 @@ lapply(1:nrow(params), function(i){
   leaveout_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
   stratified_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
   effort_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
+  preferential_sampling(params$sp[i], params$fit[i], params$n[i], params$iter[i])
+})'
+
+# ================================================================
+# 5. Setting up parallelization
+# ================================================================
+
+# maximum cores without crashing my pc
+n_cores <- detectCores() - 2
+cl <- makeCluster(n_cores)
+# setting the seed for the cluster
+clusterSetRNGStream(cl, 2962)
+
+
+# exporting for the cluster workers
+clusterExport(cl, varlist = c("envrmt","params","random_sampling", "cluster_sampling", "block_sampling",
+                              "conv_sampling", "systematic_sampling", "snowball_sampling", 
+                              "leaveout_sampling", "stratified_sampling", "effort_sampling", 
+                              "preferential_sampling"), envir = environment())
+
+clusterEvalQ(cl, {
+  library(envimaR)          # for the folder structure
+  library(dplyr)            # data manipulation
+  library(sf)               # spatial vector data
+  library(parallel)         # parallel processing
+  library(RandomFields)     # Gaussian random fields
+  library(NLMR)             # neutral landscape models
+  library(terra)            # raster handling
+  library(climateStability) # rescaling to [0,1]
+  library(RandomFieldsUtils)# dependency RandomField package
+  library(raster)           # dependency RandomField package
+  library(virtualspecies)   # for virtual species
+  library(ggplot2)          # for plotting
+  library(blockCV)          # for some of the sampling strategies
+  library(Metrics)          # for the evaluation metrics 
+  library(tidyverse)        # general functions
+  library(geodata)          # for the download of the border data
+  library(PresenceAbsence)  # for the binary cutoff of the predictions
+  library(osmdata)          # for the street and population data
 })
+
+
+# all the sampling functions
+samplers <- list(
+  random       = random_sampling,
+  cluster      = cluster_sampling,
+  block        = block_sampling,
+  conv         = conv_sampling,
+  systematic   = systematic_sampling,
+  snowball     = snowball_sampling,
+  leaveout     = leaveout_sampling,
+  stratified   = stratified_sampling,
+  effort       = effort_sampling,
+  preferential = preferential_sampling
+)
+
+# exporting the list of samplign functions 
+clusterExport(cl, "samplers", envir = environment())
+
+# ================================================================
+# 6. Sampling the presence-absence points using the sampling strategies
+# ================================================================
+
+# parallelized loop for all the functions
+failures <- parLapply(cl, seq_len(nrow(params)), function(i) {
+  
+  sp   <- params$sp[i]
+  fit  <- params$fit[i]
+  n    <- params$n[i]
+  iter <- params$iter[i]
+  
+  # empty list for the failed runs
+  local_failures <- list()
+  
+  # try catch so that we can log the errors and which runs failed
+  for (name in names(samplers)) {
+    tryCatch(
+      samplers[[name]](sp, fit, n, iter),
+      error = function(e) {
+        local_failures[[length(local_failures) + 1]] <<- data.frame(
+          function_name = name,
+          species = sp,
+          fit = fit,
+          n = n,
+          iteration = iter,
+          error_message = conditionMessage(e),
+          stringsAsFactors = FALSE
+        )
+      }
+    )
+  }
+  
+  if (length(local_failures) == 0) NULL else do.call(rbind, local_failures)
+})
+
+# ================================================================
+# 7. Final checks and cleanup
+# ================================================================
+
+# combine the logs from the workers
+failed_runs <- do.call(rbind, failures)
+
+# saves if there are failed runs
+if (!is.null(failed_runs)) {
+  write.csv(failed_runs, paste0(envrmt$path_docs,"/sampling_failures.csv"), 
+            row.names = FALSE)
+}
+
+# stop the cluster
+stopCluster(cl)
+
+
+
+
