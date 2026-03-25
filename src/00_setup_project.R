@@ -16,6 +16,7 @@
 
 library(envimaR)          # for the folder structure
 library(dplyr)            # data manipulation
+library(tidyr)            # for formating functions
 library(sf)               # spatial vector data
 library(parallel)         # parallel processing
 library(RandomFields)     # Gaussian random fields
@@ -32,6 +33,9 @@ library(tidyverse)        # general functions
 library(geodata)          # for the download of the border data
 library(PresenceAbsence)  # for the binary cutoff of the predictions
 library(osmdata)          # for the street and population data
+library(patchwork)        # for the plots
+library(lme4)             # for the mixed-effects models
+
 
 # ================================================================
 # 2. Folder structure
@@ -55,6 +59,7 @@ projectDirList <- c(
   "data/osm",                 # OpenStreetMap data
   "data/bioclim_strata",      # Folder for the stratified bioclim layers
   "data/systematic_grids",    # Folder for the systematic grids 
+  "data/evaluation",
   "docs/",
   "run/",
   "tmp",
