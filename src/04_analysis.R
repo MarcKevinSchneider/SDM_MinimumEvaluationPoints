@@ -7,10 +7,6 @@
 #' Analysis of the different sampling iterations concerning the minimum number
 #' of validation points
 
-devtools::install_github("etam4260/kneedle")
-library(kneedle)
-
-
 # ================================================================
 # 1. Load setup script and function script
 # ================================================================
@@ -51,9 +47,68 @@ for (eval in c("PA", "PO_Balanced", "PO_Random")){
 pa_path <- paste0(envrmt$path_evaluation, "/PA/")
 pa_df <- list.files(pa_path, full.names = TRUE) %>% map_df(readRDS)
 
+
+
 # ================================================================
-# 3. AUC overview plot for each species
+# 3. Overview plot over all strats, fits and virtual species
 # ================================================================
+
+# read PA data
+pa_path <- paste0(envrmt$path_evaluation, "/PA/")
+pa_df <- list.files(pa_path, full.names = TRUE) %>% map_df(readRDS)
+
+metrics <- c("AUC", "MAE", "RMSE", "TSS", "COR", "JAC", "DIS", "SOR")
+bin_size <- 5
+
+pa_df <- pa_df %>%
+  dplyr::mutate(
+    n = as.numeric(as.character(n)),
+    n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
+                    labels = FALSE) * bin_size,
+    n_bin = factor(n_bin_val)
+  )
+
+metric_plots <- lapply(metrics, function(metric) {
+  
+  plot_data <- pa_df %>%
+    dplyr::filter(!is.na(.data[[metric]]))
+  
+  ggplot(plot_data, aes(x = n_bin, y = .data[[metric]])) +
+    geom_boxplot(fill = "steelblue", alpha = 0.7,
+                 outlier.size = 0.5, outlier.alpha = 0.3) +
+    stat_summary(fun = median, geom = "line",
+                 aes(group = 1), color = "darkred", size = 0.5) +
+    labs(title = metric, x = "Sample size (n)", y = metric) +
+    theme_bw() +
+    theme(
+      plot.title       = element_text(size = 9, face = "bold", hjust = 0.5),
+      axis.title       = element_text(size = 7),
+      axis.text.x      = element_text(angle = 90, hjust = 1, size = 5),
+      axis.text.y      = element_text(size = 6),
+      panel.grid.minor = element_blank()
+    )
+})
+
+combined_plot <- wrap_plots(metric_plots, ncol = 4) +
+  plot_annotation(
+    title = "Evaluation Metrics by Sample Size",
+    theme = theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.5))
+  )
+
+ggsave(
+  filename = paste0(envrmt$path_evaluation, "/Plots/All_Metrics_Pooled_5Bins.png"),
+  plot     = combined_plot,
+  width    = 16, height = 8, dpi = 300
+)
+
+
+# ================================================================
+# 4. AUC overview plot for each species
+# ================================================================
+
+# read PA data
+pa_path <- paste0(envrmt$path_evaluation, "/PA/")
+pa_df <- list.files(pa_path, full.names = TRUE) %>% map_df(readRDS)
 
 # number of n values per bin/boxplot
 bin_size <- 5  
@@ -106,7 +161,7 @@ for (eval in c("PA", "PO_Balanced", "PO_Random")) {
 }
 
 # ================================================================
-# 4. Overview plot over all species
+# 5. Overview plot over all species
 # ================================================================
 
 # loop over all evaluation methods
@@ -175,7 +230,7 @@ for (eval_type in c("PA", "PO_Balanced", "PO_Random")) {
 
 
 # ================================================================
-# 5. Scatterplot over all species
+# 6. Scatterplot over all species
 # ================================================================
 
 
@@ -230,7 +285,7 @@ for (eval_type in c("PA", "PO_Balanced", "PO_Random")) {
 
 
 # ================================================================
-# 6. Analysis of minimum number of validation points
+# 7. Analysis of minimum number of validation points
 # ================================================================
 
 
@@ -350,7 +405,7 @@ print(do.call(rbind, results))
 
 
 # ================================================================
-# 7. COR overview plot with Knee Point markers
+# 8. COR overview plot with Knee Point markers
 # ================================================================
 
 # number of n values per bin/boxplot
@@ -418,7 +473,7 @@ for (eval in c("PA", "PO_Balanced", "PO_Random")) {
 }
 
 # ================================================================
-# 8. Static threshold for all species
+# 9. Static threshold for all species
 # ================================================================
 
 # using the threshold from Silvey & Liu 2024 but adjusted upwards slightly
@@ -541,7 +596,7 @@ for (eval in c("PO_Random")) {
 
 
 # ================================================================
-# 9. Static threshold over all species
+# 10. Static threshold over all species
 # ================================================================
 
 for (eval_type in c("PA", "PO_Balanced", "PO_Random")) {
@@ -634,7 +689,7 @@ for (eval_type in c("PA", "PO_Balanced", "PO_Random")) {
 
 
 # ================================================================
-# 10. Threshold using segmented regression
+# 11. Threshold using segmented regression
 # ================================================================
 
 library(segmented)
@@ -746,6 +801,4 @@ for (eval_type in c("PA", "PO_Balanced", "PO_Random")) {
   file_name <- paste0(plot_dir, "/", eval_type, "_COR_Segmented_Stability.png")
   ggsave(filename = file_name, plot = combined_plot, width = 15, height = 11, dpi = 300)
 }
-
-
 
