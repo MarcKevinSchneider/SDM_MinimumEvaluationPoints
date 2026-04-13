@@ -53,6 +53,47 @@ pa_df <- list.files(pa_path, full.names = TRUE) %>% map_df(readRDS)
 # 3. Overview plot over all strats, fits and virtual species
 # ================================================================
 
+get_knee_point <- function(n_values, metric_values) {
+  
+  # 1. Aggregating the data
+  #--------------------------------------------------------
+  summary_data <- data.frame(n = n_values, metric = metric_values) %>%
+    dplyr::mutate(n = as.numeric(as.character(n))) %>% 
+    dplyr::group_by(n) %>%
+    dplyr::summarise(sd_val = sd(metric, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::filter(!is.na(sd_val)) %>%
+    dplyr::arrange(n)
+  
+  # 2. Extract coordinates 
+  #--------------------------------------------------------
+  x <- summary_data$n
+  y <- summary_data$sd_val
+  
+  
+  # 3. Points of the connection line
+  #--------------------------------------------------------
+  p1 <- c(x[1], y[1])
+  pn <- c(x[length(x)], y[length(y)])
+  
+  
+  # 4. Distance of each point to the line
+  #--------------------------------------------------------
+  
+  line_vec <- pn - p1
+  
+  # calculate square root for distance calculation
+  distances <- sapply(1:length(x), function(i) {
+    p_i <- c(x[i], y[i])
+    abs(line_vec[1] * (p1[2] - p_i[2]) - (p1[1] - p_i[1]) * line_vec[2]) / 
+      sqrt(sum(line_vec^2))
+  })
+  
+  # get maximum distance point (knee)
+  knee_index <- which.max(distances)
+  
+  return(x[knee_index])
+}
+
 # read PA data
 pa_path <- paste0(envrmt$path_evaluation, "/PA/")
 pa_df <- list.files(pa_path, full.names = TRUE) %>% map_df(readRDS)
@@ -73,11 +114,21 @@ metric_plots <- lapply(metrics, function(metric) {
   plot_data <- pa_df %>%
     dplyr::filter(!is.na(.data[[metric]]))
   
+  # Find knee point
+  knee_n <- get_knee_point(plot_data$n, plot_data[[metric]])
+  knee_bin <- round(knee_n / bin_size) * bin_size
+  if (knee_bin == 0) knee_bin <- bin_size
+  
   ggplot(plot_data, aes(x = n_bin, y = .data[[metric]])) +
     geom_boxplot(fill = "steelblue", alpha = 0.7,
                  outlier.size = 0.5, outlier.alpha = 0.3) +
     stat_summary(fun = median, geom = "line",
                  aes(group = 1), color = "darkred", size = 0.5) +
+    geom_vline(aes(xintercept = factor(knee_bin)),
+               color = "firebrick", linetype = "dashed", size = 0.8) +
+    annotate("text", x = factor(knee_bin), y = min(plot_data[[metric]], na.rm = TRUE),
+             label = paste0("KP n=", knee_n),
+             color = "firebrick", angle = 90, vjust = -0.5, size = 2.5, fontface = "bold") +
     labs(title = metric, x = "Sample size (n)", y = metric) +
     theme_bw() +
     theme(
@@ -97,6 +148,216 @@ combined_plot <- wrap_plots(metric_plots, ncol = 4) +
 
 ggsave(
   filename = paste0(envrmt$path_evaluation, "/Plots/All_Metrics_Pooled_5Bins.png"),
+  plot     = combined_plot,
+  width    = 16, height = 8, dpi = 300
+)
+
+##################################
+##################################
+##################################
+
+bin_size         <- 5
+ref_n            <- 300
+threshold_offset <- 0.04
+
+# Metrics where stable = median drops within ref - 0.02
+decrease_metrics <- c("MAE", "RMSE", "DIS")
+# Metrics where stable = median rises within ref + 0.02
+increase_metrics <- c("AUC", "TSS", "COR", "JAC", "SOR")
+metrics          <- c("AUC", "MAE", "RMSE", "TSS", "COR", "JAC", "DIS", "SOR")
+
+pa_df <- pa_df %>%
+  dplyr::mutate(
+    n         = as.numeric(as.character(n)),
+    n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
+                    labels = FALSE) * bin_size,
+    n_bin     = factor(n_bin_val)
+  )
+
+metric_plots <- lapply(metrics, function(metric) {
+  
+  plot_data <- pa_df %>%
+    dplyr::filter(!is.na(.data[[metric]]))
+  
+  summary_df <- plot_data %>%
+    dplyr::group_by(n) %>%
+    dplyr::summarise(median_val = median(.data[[metric]], na.rm = TRUE), .groups = "drop") %>%
+    dplyr::arrange(n)
+  
+  # Reference value at ref_n, fallback to max n
+  if (ref_n %in% summary_df$n) {
+    ref_val <- summary_df %>% dplyr::filter(n == ref_n) %>% dplyr::pull(median_val)
+  } else {
+    ref_val <- summary_df %>% dplyr::slice_max(n, n = 1) %>% dplyr::pull(median_val)
+  }
+  
+  # Find first n where median stays within ±threshold_offset of ref_val
+  stable_df <- summary_df %>%
+    dplyr::filter(n <= ref_n) %>%
+    dplyr::mutate(
+      within       = abs(median_val - ref_val) <= threshold_offset,
+      stays_within = rev(cumall(rev(within)))
+    )
+  
+  stable_ns <- stable_df %>% dplyr::filter(stays_within) %>% dplyr::pull(n)
+  stab_val  <- if (length(stable_ns) > 0) min(stable_ns) else NA
+  
+  stab_bin <- if (!is.na(stab_val)) {
+    available_bins <- as.numeric(levels(plot_data$n_bin))
+    available_bins[which.min(abs(available_bins - stab_val))]
+  } else NA
+  
+  message(sprintf("Metric: %s | ref_val: %.3f | threshold: ±%.3f | stab_val: %s | stab_bin: %s",
+                  metric, ref_val, threshold_offset,
+                  ifelse(is.na(stab_val), "NA", stab_val),
+                  ifelse(is.na(stab_bin), "NA", stab_bin)))
+  
+  p <- ggplot(plot_data, aes(x = n_bin, y = .data[[metric]])) +
+    geom_boxplot(fill = "steelblue", alpha = 0.7,
+                 outlier.size = 0.5, outlier.alpha = 0.3) +
+    stat_summary(fun = median, geom = "line",
+                 aes(group = 1), color = "darkred", size = 0.5) +
+    labs(title = metric, x = "Sample size (n)", y = metric) +
+    theme_bw() +
+    theme(
+      plot.title       = element_text(size = 9, face = "bold", hjust = 0.5),
+      axis.title       = element_text(size = 7),
+      axis.text.x      = element_text(angle = 90, hjust = 1, size = 5),
+      axis.text.y      = element_text(size = 6),
+      panel.grid.minor = element_blank()
+    )
+  
+  if (!is.na(stab_bin)) {
+    p <- p +
+      geom_vline(xintercept = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
+                 color = "firebrick", linetype = "dashed", size = 0.8) +
+      annotate("text",
+               x     = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
+               y     = min(plot_data[[metric]], na.rm = TRUE),
+               label = paste0("n=", stab_val),
+               color = "firebrick", angle = 90, vjust = -0.5, size = 2.5, fontface = "bold")
+  }
+  
+  p
+})
+
+combined_plot <- wrap_plots(metric_plots, ncol = 4) +
+  plot_annotation(
+    title = paste0("Evaluation Metrics by Sample Size | Stability Threshold: ±", 
+                   threshold_offset, " of n=", ref_n,
+                   " (pooled across all strats, fits, and virtual species)"),
+    theme = theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.5))
+  )
+
+ggsave(
+  filename = paste0(envrmt$path_evaluation, "/Plots/All_Metrics_Pooled_StaticThreshold.png"),
+  plot     = combined_plot,
+  width    = 16, height = 8, dpi = 300
+)
+
+
+# ================================================================
+# Parameters for CV Stability
+# ================================================================
+
+# read PA data
+pa_path <- paste0(envrmt$path_evaluation, "/PA/")
+pa_df <- list.files(pa_path, full.names = TRUE) %>% map_df(readRDS)
+
+
+# ================================================================
+# Relative CV Stability (Rate of Improvement)
+# ================================================================
+bin_size        <- 10
+ref_n           <- 300
+# Threshold for 'improvement': Stop when CV shrinks by less than this amount
+improvement_threshold <- 0.001
+
+metrics <- c("AUC", "MAE", "RMSE", "TSS", "COR", "JAC", "DIS", "SOR")
+
+pa_df <- pa_df %>%
+  dplyr::mutate(
+    n = as.numeric(as.character(n)),
+    n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
+                    labels = FALSE) * bin_size,
+    n_bin = factor(n_bin_val)
+  )
+
+metric_plots <- lapply(metrics, function(metric) {
+  
+  plot_data <- pa_df %>% dplyr::filter(!is.na(.data[[metric]]))
+  
+  # 1. Calculate CV per n
+  summary_df <- plot_data %>%
+    dplyr::group_by(n) %>%
+    dplyr::summarise(
+      mean_val = mean(.data[[metric]], na.rm = TRUE),
+      sd_val   = sd(.data[[metric]], na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(cv_val = ifelse(mean_val == 0, 0, sd_val / abs(mean_val))) %>%
+    dplyr::arrange(n)
+  
+  stable_df <- summary_df %>%
+    dplyr::mutate(
+      # Smooth the CV values
+      cv_val_smoothed = zoo::rollmean(cv_val, k = 20, fill = NA, align = "right")
+    ) %>%
+    dplyr::mutate(
+      # Now calculate the difference based on the smoothed trend
+      cv_diff = abs(dplyr::lag(cv_val_smoothed) - cv_val_smoothed),
+      stable_step = cv_diff <= improvement_threshold,
+      stays_stable = rev(cumall(rev(ifelse(is.na(stable_step), TRUE, stable_step))))
+    )
+
+  stab_val <- stable_df %>% 
+    dplyr::filter(stays_stable & n > bin_size) %>% # ignore very first bin
+    dplyr::slice(1) %>% 
+    dplyr::pull(n)
+  
+  if(length(stab_val) == 0) stab_val <- NA
+  
+  # Mapping and Logging
+  stab_bin <- if (!is.na(stab_val)) {
+    bins <- as.numeric(levels(plot_data$n_bin))
+    bins[which.min(abs(bins - stab_val))]
+  } else NA
+  
+  message(sprintf("Metric: %s | Stability n: %s", metric, stab_val))
+  
+  # 3. Plotting
+  p <- ggplot(plot_data, aes(x = n_bin, y = .data[[metric]])) +
+    geom_boxplot(fill = "steelblue", alpha = 0.7, outlier.size = 0.5) +
+    stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
+    theme_bw() +
+    theme(
+      plot.title       = element_text(size = 9, face = "bold", hjust = 0.5),
+      axis.title       = element_text(size = 7),
+      axis.text.x      = element_text(angle = 90, hjust = 1, size = 5),
+      axis.text.y      = element_text(size = 6),
+      panel.grid.minor = element_blank()
+    ) +
+    xlab("n") +
+    ggtitle(metric)
+  
+    #labs(title = metric, x = "n", y = metric)
+  
+  if (!is.na(stab_bin)) {
+    p <- p +
+      geom_vline(xintercept = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
+                 color = "firebrick", linetype = "dashed") +
+      annotate("text", x = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
+               y = min(plot_data[[metric]], na.rm = TRUE),
+               label = paste0("n=", stab_val), angle = 90, vjust = 1.5, size = 2.5, color= "darkred")
+  }
+  return(p)
+})
+
+# Combine and Save
+combined_plot <- wrap_plots(metric_plots, ncol = 4) 
+
+ggsave(
+  filename = paste0(envrmt$path_evaluation, "/Plots/All_Metrics_CV_Stability.png"),
   plot     = combined_plot,
   width    = 16, height = 8, dpi = 300
 )
@@ -593,7 +854,6 @@ for (eval in c("PO_Random")) {
     message("Saved plot with Stability Thresholds for ", eval, " | ", sp_name)
   }
 }
-
 
 # ================================================================
 # 10. Static threshold over all species
