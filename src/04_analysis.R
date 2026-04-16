@@ -62,6 +62,7 @@ improvement_threshold <- 0.001
 
 metrics <- c("AUC", "MAE", "RMSE", "TSS", "COR", "JAC", "DIS", "SOR")
 
+# format data
 pa_df <- pa_df %>%
   dplyr::mutate(
     n = as.numeric(as.character(n)),
@@ -74,7 +75,8 @@ metric_plots <- lapply(metrics, function(metric) {
   
   plot_data <- pa_df %>% dplyr::filter(!is.na(.data[[metric]]))
   
-  # 1. Calculate CV per n
+  # 1. Calculate coefficient of variation per n
+  #--------------------------------------------------------
   summary_df <- plot_data %>%
     dplyr::group_by(n) %>%
     dplyr::summarise(
@@ -82,37 +84,41 @@ metric_plots <- lapply(metrics, function(metric) {
       sd_val   = sd(.data[[metric]], na.rm = TRUE),
       .groups = "drop"
     ) %>%
+    # cv calc by dividing the sd by the mean
     dplyr::mutate(cv_val = ifelse(mean_val == 0, 0, sd_val / abs(mean_val))) %>%
     dplyr::arrange(n)
   
+  # 2. Smoothing the curve
+  #--------------------------------------------------------
   stable_df <- summary_df %>%
     dplyr::mutate(
-      # Smooth the CV values
+      # smooth by 20 values
       cv_val_smoothed = zoo::rollmean(cv_val, k = 20, fill = NA, align = "right")
     ) %>%
     dplyr::mutate(
-      # Now calculate the difference based on the smoothed trend
+      # now calculate the difference based on the smoothed trend
       cv_diff = abs(dplyr::lag(cv_val_smoothed) - cv_val_smoothed),
       stable_step = cv_diff <= improvement_threshold,
       stays_stable = rev(cumall(rev(ifelse(is.na(stable_step), TRUE, stable_step))))
     )
 
+  # calc the value at whichs the prediction is stable
   stab_val <- stable_df %>% 
-    dplyr::filter(stays_stable & n > bin_size) %>% # ignore very first bin
+    dplyr::filter(stays_stable & n > bin_size) %>%
     dplyr::slice(1) %>% 
     dplyr::pull(n)
+
   
-  if(length(stab_val) == 0) stab_val <- NA
-  
-  # Mapping and Logging
+  # mapping the stability value onto the bins
+  # so tha tthe plot is correctly displayed
   stab_bin <- if (!is.na(stab_val)) {
     bins <- as.numeric(levels(plot_data$n_bin))
     bins[which.min(abs(bins - stab_val))]
   } else NA
   
-  message(sprintf("Metric: %s | Stability n: %s", metric, stab_val))
   
-  # 3. Plotting
+  # 3. Actual plot now
+  #--------------------------------------------------------
   p <- ggplot(plot_data, aes(x = n_bin, y = .data[[metric]])) +
     geom_boxplot(fill = "steelblue", alpha = 0.7, outlier.size = 0.5) +
     stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
@@ -140,7 +146,7 @@ metric_plots <- lapply(metrics, function(metric) {
   return(p)
 })
 
-# Combine and Save
+# combine and Save
 combined_plot <- wrap_plots(metric_plots, ncol = 4) 
 
 ggsave(
@@ -167,6 +173,7 @@ stab_vals <- setNames(
   lapply(metrics, function(metric) {
     plot_data <- pa_df %>% dplyr::filter(!is.na(.data[[metric]]))
     
+    # calc cv again
     summary_df <- plot_data %>%
       dplyr::group_by(n) %>%
       dplyr::summarise(
@@ -177,6 +184,7 @@ stab_vals <- setNames(
       dplyr::mutate(cv_val = ifelse(mean_val == 0, 0, sd_val / abs(mean_val))) %>%
       dplyr::arrange(n)
     
+    # same as before
     stable_df <- summary_df %>%
       dplyr::mutate(
         cv_val_smoothed = zoo::rollmean(cv_val, k = 20, fill = NA, align = "right"),
@@ -195,12 +203,13 @@ stab_vals <- setNames(
   metrics
 )
 
+# cvonert to tidy df so I can use it for plotting later
 stab_df <- tibble::tibble(
   metric   = names(stab_vals),
   stab_val = unlist(stab_vals)
 ) %>% dplyr::filter(!is.na(stab_val))
 
-# Summarise long data
+# summarise long data
 summary_long <- pa_df_long %>%
   dplyr::filter(!is.na(value)) %>%
   dplyr::group_by(metric, n) %>%
@@ -212,6 +221,8 @@ summary_long <- pa_df_long %>%
   dplyr::left_join(stab_df, by = "metric") %>%
   dplyr::mutate(metric = factor(metric, levels = metrics))
 
+# clip sd values to between 1 and -1
+# otherwise the sd will go above or below that in the plot
 summary_long <- summary_long %>%
   dplyr::mutate(
     ymin_ribbon = dplyr::case_when(
@@ -221,7 +232,7 @@ summary_long <- summary_long %>%
     ymax_ribbon = pmin(mean_val + sd_val, 1)
   )
 
-# Plot
+# plotting 
 p <- ggplot(summary_long, aes(x = n, y = mean_val)) +
   geom_ribbon(aes(ymin = ymin_ribbon, ymax = ymax_ribbon),
               fill = "steelblue", alpha = 0.2) +
@@ -255,14 +266,16 @@ ggsave(
 # 5. Further simplified for graphical abstract
 # ================================================================
 
+# only AUC and TSS for this plot
 focal_metrics <- c("AUC", "TSS")
 metric_colors <- c("AUC" = "steelblue", "TSS" = "darkorange")
 
-# Pre-compute stability thresholds for focal metrics only
+# pre-compute stability thresholds for AUC and tss
 stab_vals_focal <- setNames(
   lapply(focal_metrics, function(metric) {
     plot_data <- pa_df %>% dplyr::filter(!is.na(.data[[metric]]))
     
+    # calc cv again
     summary_df <- plot_data %>%
       dplyr::group_by(n) %>%
       dplyr::summarise(
@@ -273,6 +286,7 @@ stab_vals_focal <- setNames(
       dplyr::mutate(cv_val = ifelse(mean_val == 0, 0, sd_val / abs(mean_val))) %>%
       dplyr::arrange(n)
     
+    # same as before
     stable_df <- summary_df %>%
       dplyr::mutate(
         cv_val_smoothed = zoo::rollmean(cv_val, k = 20, fill = NA, align = "right"),
@@ -291,6 +305,7 @@ stab_vals_focal <- setNames(
   focal_metrics
 )
 
+# cvonert to tidy df so I can use it for plotting later
 stab_df_focal <- tibble::tibble(
   metric   = names(stab_vals_focal),
   stab_val = unlist(stab_vals_focal)
@@ -309,7 +324,7 @@ summary_focal <- pa_df %>%
   ) %>%
   dplyr::mutate(metric = factor(metric, levels = focal_metrics))
 
-# Plot
+# plotting
 p_focal <- ggplot(summary_focal, aes(x = n, y = mean_val,
                                      color = metric, fill = metric)) +
   geom_ribbon(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
