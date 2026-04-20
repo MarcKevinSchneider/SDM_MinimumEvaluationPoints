@@ -343,7 +343,7 @@ p_focal <- ggplot(summary_focal, aes(x = n, y = mean_val,
   theme_bw(base_size = 18) +
   theme(
     panel.grid.minor = element_blank(),
-    legend.position  = "none"  # redundant now that facet labels show metric names
+    legend.position  = "none"
   ) +
   labs(
     x = "Number of presence records (n)",
@@ -355,3 +355,158 @@ ggsave(
   plot     = p_focal,
   width    = 12, height = 8, dpi = 300
 )
+
+
+# ================================================================
+# 6. Threshold identification using exponential curve fitting
+# ================================================================
+
+get_breakpoint <- function(n_values, metric_values, pct = 0.99) {
+  
+  # 1. Aggregate to median and IQR per n
+  #--------------------------------------------------------
+  summary_data <- data.frame(n = n_values, metric = metric_values) %>%
+    dplyr::mutate(n = as.numeric(as.character(n))) %>%
+    dplyr::group_by(n) %>%
+    dplyr::summarise(
+      med_val = median(metric, na.rm = TRUE),
+      q25     = quantile(metric, 0.25, na.rm = TRUE),
+      q75     = quantile(metric, 0.75, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    dplyr::filter(!is.na(med_val)) %>%
+    dplyr::arrange(n)
+  
+  # 2. Fit exponential to median: med ~ a * exp(b * n) + c
+  #--------------------------------------------------------
+  
+  # get first and last value 
+  y_start <- summary_data$med_val[1]
+  y_end   <- summary_data$med_val[nrow(summary_data)]
+  
+  # get direction of curve
+  # necessary because some metrics are rising and some are falling
+  is_rising <- y_end > y_start
+  
+  start_vals <- list(a = y_start - y_end, b = ifelse(is_rising, -0.05, -0.05), 
+                     c = y_end)
+  
+  bp <- tryCatch({
+    
+    # 3. Fit the model
+    #--------------------------------------------------------
+    exp_mod <- nls(med_val ~ a * exp(b * n) + c, data    = summary_data,
+      start   = start_vals, control = nls.control(maxiter = 500, tol = 1e-4))
+    
+    # get coefficient
+    cf <- coef(exp_mod)
+    
+    
+    # 4. Fitted curve range from n_min to n_max
+    #--------------------------------------------------------
+    
+    # fit along the 300 n
+    n_seq      <- seq(min(summary_data$n), max(summary_data$n), by = 1)
+    fitted_seq <- cf["a"] * exp(cf["b"] * n_seq) + cf["c"]
+    
+    # calc total change per n 
+    total_change <- abs(fitted_seq[length(fitted_seq)] - fitted_seq[1])
+    
+    # calc where target change is achieved
+    # so like where 99% of change is done
+    target_change <- pct * total_change
+    
+    # walk along fitted curve until we hit the target change
+    delta <- abs(fitted_seq - fitted_seq[1])
+    bp_idx <- which(delta >= target_change)[1]
+    # get n for thatr point
+    n_bp <- n_seq[bp_idx]
+    
+    n_bp
+    
+  }, error = function(e) {
+    message("nls failed: ", e$message)
+    NA
+  })
+  
+  return(list(bp = bp, summary = summary_data))
+}
+
+
+# read PA data
+pa_path <- paste0(envrmt$path_evaluation, "/PA/")
+#pa_path <- paste0(envrmt$path_evaluation, "/PO_Random/")
+#pa_path <- paste0(envrmt$path_evaluation, "/PO_Balanced/")
+pa_df <- list.files(pa_path, full.names = TRUE) %>% map_df(readRDS)
+
+# pivot to long format
+pa_df_long <- pa_df %>%
+  tidyr::pivot_longer(
+    cols = all_of(metrics),
+    names_to  = "metric",
+    values_to = "value"
+  )
+
+# pre compute breakpoints and summaries per metric
+bp_results <- setNames(
+  lapply(metrics, function(metric) {
+    plot_data <- pa_df %>% dplyr::filter(!is.na(.data[[metric]]))
+    get_breakpoint(n_values = plot_data$n, metric_values = plot_data[[metric]])
+  }),
+  metrics
+)
+
+# extract breakpoints into tidy df for plotting
+stab_df <- tibble::tibble(
+  metric   = names(bp_results),
+  stab_val = sapply(bp_results, function(x) x$bp)
+) %>% dplyr::filter(!is.na(stab_val))
+
+# extract and combine per-metric summaries (median + IQR) into long df
+summary_long <- dplyr::bind_rows(
+  lapply(metrics, function(metric) {
+    bp_results[[metric]]$summary %>%
+      dplyr::mutate(metric = metric)
+  })
+) %>%
+  dplyr::left_join(stab_df, by = "metric") %>%
+  dplyr::mutate(metric = factor(metric, levels = metrics)) %>%
+  # clip IQR to valid range per metric
+  dplyr::mutate(
+    ymin_ribbon = dplyr::case_when(
+      metric == "COR" ~ pmax(q25, -1),
+      TRUE            ~ pmax(q25,  0)
+    ),
+    ymax_ribbon = pmin(q75, 1)
+  )
+
+# plotting
+p <- ggplot(summary_long, aes(x = n, y = med_val)) +
+  geom_ribbon(aes(ymin = ymin_ribbon, ymax = ymax_ribbon),
+              fill = "steelblue", alpha = 0.2) +
+  geom_line(color = "steelblue", linewidth = 0.8) +
+  geom_vline(data = stab_df %>% dplyr::mutate(metric = factor(metric, levels = metrics)),
+             aes(xintercept = stab_val),
+             color = "firebrick", linetype = "dashed", linewidth = 0.6) +
+  geom_text(data = stab_df %>% dplyr::mutate(metric = factor(metric, levels = metrics)),
+            aes(x = stab_val, y = -Inf, label = paste0("n=", round(stab_val))),
+            angle = 90, vjust = -0.5, hjust = -1, color = "firebrick", size = 4.5) +
+  facet_wrap(~ metric, scales = "fixed", ncol = 4) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background  = element_rect(fill = "white", color = NA),
+    strip.text       = element_text(face = "bold", size = 9),
+    axis.text.x      = element_text(angle = 45, hjust = 1, size = 7),
+    axis.text.y      = element_text(size = 7),
+    panel.grid.minor = element_blank(),
+    legend.position  = "none"
+  ) +
+  labs(x = "Number of presence records (n)", y = "Median value")
+
+ggsave(
+  filename = paste0(envrmt$path_evaluation, "/Plots/PA_Simplified_Metrics_FittedCurve.png"),
+  plot     = p,
+  width    = 16, height = 8, dpi = 300
+)
+
