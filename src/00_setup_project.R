@@ -29,12 +29,14 @@ library(virtualspecies)   # for virtual species
 library(ggplot2)          # for plotting
 library(blockCV)          # for some of the sampling strategies
 library(Metrics)          # for the evaluation metrics 
+library(irr)              # for Cohens Kappa
 library(tidyverse)        # general functions
 library(geodata)          # for the download of the border data
+library(ggspatial)        # for the plots
 library(PresenceAbsence)  # for the binary cutoff of the predictions
 library(osmdata)          # for the street and population data
 library(patchwork)        # for the plots
-library(lme4)             # for the mixed-effects models
+library(scales)           # for the plots
 
 
 # ================================================================
