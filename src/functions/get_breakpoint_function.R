@@ -26,7 +26,7 @@ set.seed(2962)
 # ================================================================
 
 # helper function for the curve fitting
-fit_curve <- function(y_col){
+fit_curve <- function(y_col, n_values){
   '
   Purpose: Fit a non-least squares exponential decay model to the data
   
@@ -35,7 +35,10 @@ fit_curve <- function(y_col){
   ----------------------------
   
   y_col: vector
-    Column of the df that should be fitted
+    Metric column of the df that should be fitted
+    
+  n_values: vector
+    n-values column of the df
     
   
   Returns:
@@ -50,13 +53,13 @@ fit_curve <- function(y_col){
   tryCatch({
     # non lest squares exponential model
     mod <- nls(y ~ a * exp(b * n) + c,
-               data = data.frame(n = summary_data$n, y = y_col),
+               data = data.frame(n = n_values, y = y_col),
                start = list(a = y_start - y_end, b = -0.05, c = y_end),
                control = nls.control(maxiter = 500, tol = 1e-4))
     
     # get coefficients of curve
     cf <- coef(mod)
-    n_seq <- seq(min(summary_data$n), max(summary_data$n), by = 1)
+    n_seq <- seq(min(n_values), max(n_values), by = 1)
     
     list(n_seq = n_seq, slope_seq = abs(cf["a"] * cf["b"] * exp(cf["b"] * n_seq)))
     
@@ -111,8 +114,8 @@ get_breakpoint <- function(n_values, metric_values, slope_pct = 0.10,
   # 2. Compute curve for median and value range
   #--------------------------------------------------------
   
-  fit_med <- fit_curve(summary_data$med_val)
-  fit_range <- fit_curve(summary_data$range_val)
+  fit_med <- fit_curve(summary_data$med_val, summary_data$n)
+  fit_range <- fit_curve(summary_data$range_val, summary_data$n)
   
   
   # 3. Find breakpount from both curves

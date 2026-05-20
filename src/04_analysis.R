@@ -214,7 +214,7 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
 }
 
 # ================================================================
-# 6. AUC threshold by niche breadth
+# 5. AUC threshold by niche breadth
 # ================================================================
 
 for (eval in c("PA", "PO_Random", "PO_Balanced")) {
@@ -236,10 +236,12 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
   niche_results <- lapply(levels(sp_df$niche), function(niche_label) {
     
     plot_data <- sp_df %>% dplyr::filter(niche == niche_label)
+    #print(plot_data)
     
     # get breakpoint pooled over all species in this niche group
-    bp <- get_breakpoint(n_values = plot_data$n, metric_values = plot_data$AUC, weights = c(0.5, 0.5))
+    bp <- get_breakpoint(n_values = plot_data$n, metric_values = plot_data$AUC)
     stab_val <- bp$bp
+    #print(stab_val)
     
     stab_bin <- if (!is.na(stab_val)) {
       bins <- as.numeric(levels(plot_data$n_bin))
