@@ -5,7 +5,8 @@
 #' 
 #' @description
 #' Functions for evaluating the samples using AUC, TSS, RMSE, MAE, 
-#' Pearson's Correlation, Jaccard's Similarity Index and Sorensen's Similarity Index
+#' Pearson's Correlation, Cohen's Kappa Jaccard's Similarity Index and 
+#' Sorensen's Similarity Index
 
 # ================================================================
 # 1. Load setup script
@@ -229,7 +230,7 @@ jaccard_distance <- function(df){
   return(JAC_DIS)
 }
 
-# 7 - Sorensen's Similarity Index ###
+# 8 - Sorensen's Similarity Index ###
 #-----------------------------------------#
 
 sorensen_eval <- function(df){
@@ -263,7 +264,35 @@ sorensen_eval <- function(df){
   return(SOREN)
 }
 
-# 8 - Function for executing all metrics ##
+# 9 - Cohen's Kappa ###
+#-----------------------------------------#
+
+kappa_eval <- function(df){
+  '
+  Purpose: Helper function for calculating Cohens Kappa
+  
+  Parameters:
+  ---------------------------------
+  
+  df: dataframe
+    Dataframe of the actual distribution and artificial distribution map sample data
+    Must contain the columns "predicted" and "observed"
+    
+  
+  Returns:
+  --------------------------
+  Cohens Kappa
+  '
+  # from https://www.geeksforgeeks.org/r-language/how-to-calculate-cohens-kappa-in-r/
+  agree <- data.frame("Observed" = df$Observed, "Predicted" = df$Predicted)
+  KAPPA <- irr::kappa2(agree, weight = "unweighted")
+  KAPPA <- KAPPA$value
+  
+  return(KAPPA)
+}
+
+
+# 10 - Function for executing all metrics ##
 #-----------------------------------------#
 
 eval_funcs <- function(df){
@@ -298,7 +327,9 @@ eval_funcs <- function(df){
   DIS <- jaccard_distance(df)
   # Sorensens Similarity Index
   SOR <- sorensen_eval(df)
+  # Cohens Kappa
+  KAP <- kappa_eval(df)
   
-  return(list(AUC=AUC, MAE=MAE, RMSE=RMSE, TSS=TSS, COR=COR,
+  return(list(AUC=AUC, MAE=MAE, RMSE=RMSE, TSS=TSS, COR=COR, KAP=KAP,
               JAC=JAC, DIS=DIS, SOR=SOR))
 }

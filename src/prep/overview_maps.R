@@ -21,7 +21,7 @@ set.seed(2962)
 source(paste0(envrmt$path_src, "/prep/map_functions.R"))
 
 # ================================================================
-# 2. Study area overview map
+# 2. Study area overview setup
 # ================================================================
 
 # read the original bioclim data
@@ -42,19 +42,26 @@ bioclim_mask <- terra::mask(bioclim_crop, terra::vect(study_states))
 names(bioclim_mask) <- c("Annual Mean Temperature", "Isothermality",
                          "Annual Temperature Range", "Annual Precipitation")
 
+
+# ================================================================
+# 3. Study area overview plot
+# ================================================================
+
 # overview plot of australia
 p_australia <- ggplot() +
+  # all of australia
   geom_sf(data = australia, fill = "grey85", colour = "grey40", linewidth = 0.3) +
+  # only nsw, vic and act
   geom_sf(data = study_states, fill = "grey60", colour = "grey30", linewidth = 0.3) +
+  # outline of the study area
   geom_sf(data = study_bbox_poly, fill = NA, colour = "#CC0000", linewidth = 0.6, linetype = "solid") +
-  ggspatial::annotation_north_arrow(location = "tr", style = north_arrow_minimal(text_size = 6), 
-                                    height = unit(0.7, "cm"), width = unit(0.5, "cm")) +
+  ggspatial::annotation_north_arrow(location = "tr", height = unit(1, "cm"), width = unit(0.6, "cm")) +
   ggspatial::annotation_scale(location = "bl", width_hint = 0.4, text_cex = 0.5, bar_cols = c("grey30", "white"), 
                               line_width = 0.3) +
   labs(title = "Australia") +
   theme_void(base_size = 9) +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 9, margin = margin(b = 3)), 
-        panel.border = element_rect(colour = "grey40", fill = NA, linewidth = 0.4), 
+        #panel.border = element_rect(colour = "grey40", fill = NA, linewidth = 0.4), 
         plot.margin = margin(4, 4, 4, 4))
 
 # reproject centroids to WGS84 before extracting lon/lat
@@ -63,10 +70,10 @@ centroids_sf <- sf::st_centroid(study_states_valid) |> sf::st_transform(4326)
 coords <- sf::st_coordinates(centroids_sf)
 
 # centroids so we can assign the names to the states
-study_states_centroids <- data.frame(lon = coords[, 1],lat = coords[, 2], 
+study_states_centroids <- data.frame(lon = coords[, 1],lat = coords[, 2],  
                                      STE_NAME21 = study_states_valid$STE_NAME21)
 
-# Reproject both layers to WGS84 for plotting
+# reproject both layers to WGS84 for plotting
 australia_wgs <- sf::st_transform(australia, 4326)
 study_states_wgs <- sf::st_transform(study_states, 4326)
 
@@ -76,16 +83,18 @@ bbox_wgs <- sf::st_bbox(study_states_wgs)
 
 # zoom in of the study area states
 p_studyarea <- ggplot() +
-  geom_sf(data = australia_wgs, fill = "grey90", colour = "grey60", linewidth = 0.25) +
-  geom_sf(data = study_states_wgs, fill = "grey65", colour = "grey20", linewidth = 0.45) +
+  # nsw, vic and act
+  geom_sf(data = study_states_wgs, fill = "grey90", colour = "grey60", linewidth = 0.45) +
+  # names for them
   geom_text(data = study_states_centroids, aes(x = lon, y = lat + 0.3, label = STE_NAME21), 
-            size = 3, colour = "grey10", fontface = "bold", check_overlap = TRUE) +
+            size = 2.3, colour = "grey10", fontface = "bold", check_overlap = TRUE) +
+  # clip offshore islands
   coord_sf(xlim  = c(bbox_wgs["xmin"], 154), ylim = c(bbox_wgs["ymin"], bbox_wgs["ymax"]), expand = FALSE) +
   labs(title = "Study Area", x = NULL, y = NULL) +
   theme_void(base_size = 9) +
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5, size = 9, margin = margin(b = 3)),
-    panel.border = element_rect(colour = "grey40", fill = NA, linewidth = 0.4),
+    #panel.border = element_rect(colour = "grey40", fill = NA, linewidth = 0.4),
     plot.margin = margin(4, 4, 4, 4),
     panel.grid.major = element_line(colour = "grey70", linewidth = 0.25, linetype = "dashed"),
     axis.text.x = element_text(size = 6, colour = "grey30"),
@@ -120,6 +129,7 @@ ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/Overview_StudyArea_Worl
 # 3. Virtual species overview
 # ================================================================
 
+# names of the vs
 vs_names <- c("VS01", "VS02", "VS03", "VS04", "VS05",
               "VS06", "VS07", "VS08", "VS09", "VS10")
 
@@ -137,10 +147,25 @@ panels <- lapply(seq_along(vs_names), function(i) {
   make_vs_panel(vs_names[i], prevalence[i])
 })
 
-# assemble in 2x5 grid
+# build a minimal plot so I can extract the legend
+legend_plot <- ggplot(data.frame(x = 1, y = 1,  fill = factor(c("0", "1"), levels = c("0", "1"))), 
+                      aes(x = x, y = y, fill = fill)) +
+  geom_tile() +
+  scale_fill_manual(values = c("0" = "grey", "1" = "darkgreen"), 
+                    labels = c("0" = "Study region", "1" = "Species distribution"), name = NULL) +
+  theme_void() +
+  theme(legend.position = "bottom", legend.direction = "horizontal", legend.text = element_text(size = 10),
+        legend.key.size = unit(0.5, "cm"))
+
+# extract just the legend as a grob
+# changed from https://stackoverflow.com/questions/29286588/how-to-create-a-custom-legends-using-ggplotgrob
+legend_grob <- ggplotGrob(legend_plot)$grobs[[which(sapply(ggplotGrob(legend_plot)$grobs, function(x) x$name) == "guide-box")]]
+
+# assemble as 2x5 grid
 row1 <- wrap_plots(panels[1:5],  nrow = 1)
 row2 <- wrap_plots(panels[6:10], nrow = 1)
-vs_overview <- row1 / row2
+
+vs_overview <- row1 / row2 / wrap_elements(legend_grob) + plot_layout(heights = c(1, 1, 0.08))
 
 # save
 ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/Overview_VirtualSpecies.png"),
