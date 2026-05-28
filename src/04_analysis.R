@@ -318,7 +318,7 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
     dplyr::left_join(fit_to_quality, by = "fit") %>%
     dplyr::mutate(fit = factor(fit, levels = unlist(fit_groups)), quality = factor(quality, levels = names(fit_groups)))
   
-  # one plot per fit value, ordered by quality group
+  # one plot per fit value
   fit_results <- lapply(levels(fit_df$fit), function(fit_val) {
     
     plot_data <- fit_df %>% dplyr::filter(fit == fit_val)
@@ -384,7 +384,80 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
 }
 
 # ================================================================
-# 7. AUC threshold by sampling strategy
+# 7. AUC threshold by fit category
+# ================================================================
+
+for (eval in c("PA", "PO_Random", "PO_Balanced")) {
+#for (eval in c("PA")) {  
+  data_path <- paste0(envrmt$path_evaluation, "/", eval, "/")
+  fit_df <- list.files(data_path, full.names = TRUE) %>% map_df(readRDS)
+  
+  # format and filter to n 1-300
+  fit_df <- fit_df %>%
+    dplyr::mutate(n = as.numeric(as.character(n)), fit = as.numeric(as.character(fit))) %>%
+    dplyr::filter(n >= 1, n <= 300, !is.na(AUC)) %>%
+    dplyr::mutate(n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
+                      labels = FALSE) * bin_size,n_bin = factor(n_bin_val)) %>%
+    dplyr::left_join(fit_to_quality, by = "fit") %>%
+    dplyr::mutate(quality = factor(quality, levels = names(fit_groups)))
+  
+  # one plot per quality group
+  quality_results <- lapply(levels(fit_df$quality), function(quality_label) {
+    
+    plot_data <- fit_df %>% dplyr::filter(quality == quality_label)
+    
+    # get breakpoint
+    bp  <- get_breakpoint(n_values = plot_data$n, metric_values = plot_data$AUC)
+    stab_val <- bp$bp
+    
+    stab_bin <- if (!is.na(stab_val)) {
+      bins <- as.numeric(levels(plot_data$n_bin))
+      bins[which.min(abs(bins - stab_val))]
+    } else NA
+    
+    p <- ggplot(plot_data, aes(x = n_bin, y = AUC)) +
+      geom_boxplot(fill = "steelblue", alpha = 0.7, outlier.size = 0.5) +
+      stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
+      theme_bw() +
+      ylim(0, 1) +
+      theme(
+        plot.title = element_text(size = 9, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 7),
+        axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
+        axis.text.y = element_text(size = 6),
+        panel.grid.minor = element_blank()) +
+      labs(x = "n", y = "AUC", title = quality_label)
+    
+    if (!is.na(stab_bin)) {
+      p <- p +
+        geom_vline(xintercept = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
+                   color = "firebrick", linetype = "dashed") +
+        annotate("text", x = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
+                 y = min(plot_data$AUC, na.rm = TRUE),
+                 label = paste0("n=", round(stab_val)),
+                 angle = 90, vjust = 1.5, size = 2.5, color = "darkred")
+    }
+    
+    list(plot = p, quality = quality_label, stab_val = stab_val)
+  })
+  
+  # split plots and thresholds
+  quality_plots <- lapply(quality_results, function(x) x$plot)
+  
+  threshold_df <- tibble::tibble(eval = eval, quality = sapply(quality_results, function(x) x$quality),
+                                 stab_val = sapply(quality_results, function(x) x$stab_val))
+  
+  write.csv(threshold_df, file = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_Thresholds_by_FitQuality.csv"),
+            row.names = FALSE)
+  
+  combined_plot <- wrap_plots(quality_plots, ncol = 3)
+  
+  ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_by_FitQuality.png"),
+         plot = combined_plot, width = 16, height = 6, dpi = 300)
+}
+
+# ================================================================
+# 8. AUC threshold by sampling strategy
 # ================================================================
 
 # sampling strategy grouping
