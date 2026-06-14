@@ -118,42 +118,44 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")){
 }
 
 
+
 # ================================================================
-# 4. AUC threshold by species
+# 4. AUC threshold by niche breadth
 # ================================================================
 
+# read and combine all three datasets
+combined_df <- dplyr::bind_rows(
+  lapply(c("PA", "PO_Random", "PO_Balanced"), function(eval) {
+    data_path <- paste0(envrmt$path_evaluation, "/", eval, "/")
+    list.files(data_path, full.names = TRUE) %>%
+      map_df(readRDS) %>%
+      dplyr::mutate(eval = eval)}))
+
 # niche breadth grouping
-niche_groups <- list(
-  "Broad niche" = c("VS01", "VS02", "VS03"),
-  "Medium niche" = c("VS04", "VS05", "VS06"),
-  "Small niche" = c("VS07", "VS08", "VS09", "VS10")
-)
+niche_groups <- list("Broad niche" = c("VS01", "VS02", "VS03"),
+                     "Medium niche" = c("VS04", "VS05", "VS06"),
+                     "Narrow niche" = c("VS07", "VS08", "VS09", "VS10"))
 
 # assings the niche to each species
 sp_to_niche <- tibble::enframe(niche_groups, name = "niche", value = "sp") %>% tidyr::unnest(sp)
 
-for (eval in c("PA", "PO_Random", "PO_Balanced")) {
-#for (eval in c("PA")) {
-  
-  data_path <- paste0(envrmt$path_evaluation, "/", eval, "/")
-  sp_df <- list.files(data_path, full.names = TRUE) %>% map_df(readRDS)
-  
-  # format and filter to n 1-300
-  sp_df <- sp_df %>%
-    dplyr::mutate(n = as.numeric(as.character(n))) %>%
-    dplyr::filter(n >= 1, n <= 300, !is.na(AUC)) %>%
-    dplyr::mutate(n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
-                      labels = FALSE) * bin_size, n_bin = factor(n_bin_val)) %>%
-    dplyr::left_join(sp_to_niche, by = "sp") %>%
-    dplyr::mutate(sp = factor(sp, levels = unlist(niche_groups)), niche = factor(niche, levels = names(niche_groups)))
-  
-  # one plot per species, ordered by niche breadth
-  sp_results <- lapply(levels(sp_df$sp), function(species) {
+# format and filter
+combined_df <- combined_df %>%
+  dplyr::mutate(n = as.numeric(as.character(n))) %>%
+  dplyr::filter(n >= 1, n <= 300, !is.na(AUC)) %>%
+  dplyr::mutate(n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
+                                labels = FALSE) * bin_size, n_bin = factor(n_bin_val)) %>%
+  dplyr::left_join(sp_to_niche, by = "sp") %>%
+  dplyr::mutate(niche = factor(niche, levels = names(niche_groups)), 
+                eval = factor(eval, levels = c("PA", "PO_Random", "PO_Balanced")))
+
+# one plot per eval x niche combination
+all_results <- lapply(levels(combined_df$eval), function(eval_label) {
+  lapply(levels(combined_df$niche), function(niche_label) {
     
-    plot_data <- sp_df %>% dplyr::filter(sp == species)
-    niche_label <- unique(plot_data$niche)
+    plot_data <- combined_df %>% 
+      dplyr::filter(eval == eval_label, niche == niche_label)
     
-    # get breakpoint
     bp <- get_breakpoint(n_values = plot_data$n, metric_values = plot_data$AUC)
     stab_val <- bp$bp
     
@@ -167,96 +169,10 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
       stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
       theme_bw() +
       ylim(0, 1) +
-      theme(
-        plot.title = element_text(size = 9, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 7, hjust = 0.5, color = "grey40"),
-        axis.title = element_text(size = 7),
-        axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
-        axis.text.y = element_text(size = 6),
-        panel.grid.minor = element_blank()
-      ) + labs(x = "n", y = "AUC", title = species, subtitle = niche_label)
-    
-    if (!is.na(stab_bin)) {
-      p <- p +
-        geom_vline(xintercept = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
-                   color = "firebrick", linetype = "dashed") +
-        annotate("text", x = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))), 
-                 y = min(plot_data$AUC, na.rm = TRUE), label = paste0("n=", round(stab_val)),
-                 angle = 90, vjust = 1.5, size = 2.5, color = "darkred")
-    }
-    
-    # return both plot and threshold value
-    list(plot = p, sp = species, niche = as.character(niche_label), stab_val = stab_val)
-  })
-  
-  # split plots and thresholds
-  sp_plots <- lapply(sp_results, function(x) x$plot)
-  
-  threshold_df <- tibble::tibble(eval = eval, sp = sapply(sp_results, function(x) x$sp), 
-                                 niche = sapply(sp_results, function(x) x$niche), 
-                                 stab_val = sapply(sp_results, function(x) x$stab_val))
-  
-  write.csv(threshold_df, file = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_Thresholds_by_Species.csv"),
-            row.names = FALSE)
-  
-  # group into niche panels using patchwork
-  broad_patch  <- wrap_plots(sp_plots[1:3],  ncol = 3) +
-    plot_annotation(title = "Broad niche",  theme = theme(plot.title = element_text(size = 10, face = "bold")))
-  medium_patch <- wrap_plots(sp_plots[4:6],  ncol = 3) +
-    plot_annotation(title = "Medium niche", theme = theme(plot.title = element_text(size = 10, face = "bold")))
-  small_patch  <- wrap_plots(sp_plots[7:10], ncol = 4) +
-    plot_annotation(title = "Small niche",  theme = theme(plot.title = element_text(size = 10, face = "bold")))
-  
-  combined_plot <- broad_patch / medium_patch / small_patch
-  
-  ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_by_Species.png"), plot = combined_plot,
-         width = 16, height = 12, dpi = 300)
-}
-
-# ================================================================
-# 5. AUC threshold by niche breadth
-# ================================================================
-
-for (eval in c("PA", "PO_Random", "PO_Balanced")) {
-#for (eval in c("PA")) {
-  
-  data_path <- paste0(envrmt$path_evaluation, "/", eval, "/")
-  sp_df <- list.files(data_path, full.names = TRUE) %>% map_df(readRDS)
-  
-  # format and filter to n 1-300
-  sp_df <- sp_df %>%
-    dplyr::mutate(n = as.numeric(as.character(n))) %>%
-    dplyr::filter(n >= 1, n <= 300, !is.na(AUC)) %>%
-    dplyr::mutate(n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size), 
-                                  labels = FALSE) * bin_size, n_bin = factor(n_bin_val)) %>%
-    dplyr::left_join(sp_to_niche, by = "sp") %>%
-    dplyr::mutate(niche = factor(niche, levels = names(niche_groups)))
-  
-  # one plot per niche group (pooled over species within group)
-  niche_results <- lapply(levels(sp_df$niche), function(niche_label) {
-    
-    plot_data <- sp_df %>% dplyr::filter(niche == niche_label)
-    #print(plot_data)
-    
-    # get breakpoint pooled over all species in this niche group
-    bp <- get_breakpoint(n_values = plot_data$n, metric_values = plot_data$AUC)
-    stab_val <- bp$bp
-    #print(stab_val)
-    
-    stab_bin <- if (!is.na(stab_val)) {
-      bins <- as.numeric(levels(plot_data$n_bin))
-      bins[which.min(abs(bins - stab_val))]
-    } else NA
-    
-    p <- ggplot(plot_data, aes(x = n_bin, y = AUC)) +
-      geom_boxplot(fill = "steelblue", alpha = 0.7, outlier.size = 0.5) +
-      stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
-      theme_bw() +
-      ylim(0, 1) +
-      theme(plot.title = element_text(size = 9, face = "bold", hjust = 0.5), 
-            axis.title = element_text(size = 7), 
-            axis.text.x = element_text(angle = 90, hjust = 1, size = 5), 
-            axis.text.y = element_text(size = 6), 
+      theme(plot.title = element_text(size = 9, face = "bold", hjust = 0.5),
+            axis.title = element_text(size = 7),
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
+            axis.text.y = element_text(size = 6),
             panel.grid.minor = element_blank()) +
       labs(x = "n", y = "AUC", title = niche_label)
     
@@ -271,60 +187,88 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
                  angle = 90, vjust = 1.5, size = 2.5, color = "darkred")
     }
     
-    list(plot = p, niche = niche_label, stab_val = stab_val)
+    list(plot = p, eval = eval_label, niche = niche_label, stab_val = stab_val)
   })
-  
-  # split plots and thresholds
-  niche_plots <- lapply(niche_results, function(x) x$plot)
-  
-  threshold_df <- tibble::tibble(eval = eval, niche = sapply(niche_results, function(x) x$niche),
-                                 stab_val = sapply(niche_results, function(x) x$stab_val))
-  
-  write.csv(threshold_df, file = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_Thresholds_by_Niche.csv"), 
-            row.names = FALSE)
-  
-  combined_plot <- wrap_plots(niche_plots, ncol = 3)
-  
-  ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_by_Niche.png"), plot = combined_plot, 
-         width = 16, height = 6, dpi = 300)
+})
+
+# flatten nested list
+all_results_flat <- unlist(all_results, recursive = FALSE)
+
+# split plots and thresholds
+all_plots <- lapply(all_results_flat, function(x) x$plot)
+
+threshold_df <- tibble::tibble(eval = sapply(all_results_flat, function(x) x$eval),
+                               niche = sapply(all_results_flat, function(x) x$niche),
+                               stab_val = sapply(all_results_flat, function(x) x$stab_val))
+
+write.csv(threshold_df, file = paste0(envrmt$path_evaluation, "/Plots/All_AUC_Thresholds_by_Niche.csv"),
+          row.names = FALSE)
+
+# helper function to create a rotated row label
+row_label <- function(label) {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5, label = label,
+             angle = 90, size = 4, fontface = "bold") +
+    theme_void()
 }
 
+# plots for pa, po random and po balanced
+row_PA <- wrap_plots(row_label("PA"),
+                     wrap_plots(all_plots[1:3], ncol = 3), 
+                     ncol = 2, widths = c(0.01, 1))
+
+row_PO_Bal <- wrap_plots(row_label("PO-Balanced"),
+                         wrap_plots(all_plots[7:9], ncol = 3),
+                         ncol = 2, widths = c(0.01, 1))
+
+row_PO_Rand <- wrap_plots(row_label("PO-Random"), 
+                          wrap_plots(all_plots[4:6], ncol = 3),
+                          ncol = 2, widths = c(0.01, 1))
+
+combined_plot <- row_PA / row_PO_Bal / row_PO_Rand
+
+ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/All_AUC_by_Niche.png"),
+       plot = combined_plot, width = 17, height = 14, dpi = 300)
+
 # ================================================================
-# 6. AUC threshold by fit quality
+# 5. AUC threshold by fit category combined
 # ================================================================
 
-# fit quality grouping
-fit_groups <- list(
-  "Bad fit" = c(0.1, 0.2, 0.3),
-  "Moderate fit" = c(0.4, 0.5, 0.6),
-  "Good fit" = c(0.7, 0.8, 0.9)
+# read and combine all three datasets
+combined_df <- dplyr::bind_rows(
+  lapply(c("PA", "PO_Random", "PO_Balanced"), function(eval) {
+    data_path <- paste0(envrmt$path_evaluation, "/", eval, "/")
+    list.files(data_path, full.names = TRUE) %>%
+      map_df(readRDS) %>%
+      dplyr::mutate(eval = eval)
+  })
 )
+
+# fit quality grouping
+fit_groups <- list("Poor fit" = c(0.1, 0.2, 0.3), 
+                   "Moderate fit" = c(0.4, 0.5, 0.6),
+                   "Good fit" = c(0.7, 0.8, 0.9))
 
 #  fit to quality label
 fit_to_quality <- tibble::enframe(fit_groups, name = "quality", value = "fit") %>% tidyr::unnest(fit)
 
-for (eval in c("PA", "PO_Random", "PO_Balanced")) {
-#for (eval in c("PA")) {
-  
-  data_path <- paste0(envrmt$path_evaluation, "/", eval, "/")
-  fit_df <- list.files(data_path, full.names = TRUE) %>% map_df(readRDS)
-  
-  # format and filter to n 1-300
-  fit_df <- fit_df %>%
-    dplyr::mutate(n = as.numeric(as.character(n)), fit = as.numeric(as.character(fit))) %>%
-    dplyr::filter(n >= 1, n <= 300, !is.na(AUC)) %>%
-    dplyr::mutate(n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
-                      labels = FALSE) * bin_size, n_bin = factor(n_bin_val)) %>%
-    dplyr::left_join(fit_to_quality, by = "fit") %>%
-    dplyr::mutate(fit = factor(fit, levels = unlist(fit_groups)), quality = factor(quality, levels = names(fit_groups)))
-  
-  # one plot per fit value
-  fit_results <- lapply(levels(fit_df$fit), function(fit_val) {
+# format and filter
+combined_df <- combined_df %>%
+  dplyr::mutate(n = as.numeric(as.character(n)), fit = as.numeric(as.character(fit))) %>%
+  dplyr::filter(n >= 1, n <= 300, !is.na(AUC)) %>%
+  dplyr::mutate(n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
+                                labels = FALSE) * bin_size, n_bin = factor(n_bin_val)) %>%
+  dplyr::left_join(fit_to_quality, by = "fit") %>%
+  dplyr::mutate(quality = factor(quality, levels = names(fit_groups)),
+                eval = factor(eval, levels = c("PA", "PO_Random", "PO_Balanced")))
+
+# one plot per eval x quality combination
+all_results <- lapply(levels(combined_df$eval), function(eval_label) {
+  lapply(levels(combined_df$quality), function(quality_label) {
     
-    plot_data <- fit_df %>% dplyr::filter(fit == fit_val)
-    quality_label <- unique(plot_data$quality)
+    plot_data <- combined_df %>%
+      dplyr::filter(eval == eval_label, quality == quality_label)
     
-    # get breakpoint
     bp <- get_breakpoint(n_values = plot_data$n, metric_values = plot_data$AUC)
     stab_val <- bp$bp
     
@@ -338,94 +282,11 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
       stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
       theme_bw() +
       ylim(0, 1) +
-      theme(
-        plot.title = element_text(size = 9, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 7, hjust = 0.5, color = "grey40"),
-        axis.title = element_text(size = 7),
-        axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
-        axis.text.y = element_text(size = 6),
-        panel.grid.minor = element_blank()
-      ) + labs(x = "n", y = "AUC", title = paste0(fit_val), subtitle = quality_label)
-    
-    if (!is.na(stab_bin)) {
-      p <- p +
-        geom_vline(xintercept = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
-                   color = "firebrick", linetype = "dashed") +
-        annotate("text",x = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))), 
-                 y = min(plot_data$AUC, na.rm = TRUE), label = paste0("n=", round(stab_val)),
-                 angle = 90, vjust = 1.5, size = 2.5, color = "darkred")
-    }
-    
-    list(plot = p, fit = fit_val, quality = as.character(quality_label), stab_val = stab_val)
-  })
-  
-  # split plots and thresholds
-  fit_plots <- lapply(fit_results, function(x) x$plot)
-  
-  threshold_df <- tibble::tibble(eval = eval, fit = sapply(fit_results, function(x) x$fit), 
-                                 quality  = sapply(fit_results, function(x) x$quality), 
-                                 stab_val = sapply(fit_results, function(x) x$stab_val))
-  
-  write.csv(threshold_df, file = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_Thresholds_by_Fit.csv"),
-            row.names = FALSE)
-  
-  # group into quality panels using patchwork
-  bad_patch <- wrap_plots(fit_plots[1:3], ncol = 3) +
-    plot_annotation(title = "Bad fit", theme = theme(plot.title = element_text(size = 10, face = "bold")))
-  moderate_patch <- wrap_plots(fit_plots[4:6], ncol = 3) +
-    plot_annotation(title = "Moderate fit", theme = theme(plot.title = element_text(size = 10, face = "bold")))
-  good_patch <- wrap_plots(fit_plots[7:9], ncol = 3) +
-    plot_annotation(title = "Good fit", theme = theme(plot.title = element_text(size = 10, face = "bold")))
-  
-  combined_plot <- bad_patch / moderate_patch / good_patch
-  
-  ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_by_Fit.png"), plot = combined_plot,
-         width = 16, height = 12, dpi = 300)
-}
-
-# ================================================================
-# 7. AUC threshold by fit category
-# ================================================================
-
-for (eval in c("PA", "PO_Random", "PO_Balanced")) {
-#for (eval in c("PA")) {  
-  data_path <- paste0(envrmt$path_evaluation, "/", eval, "/")
-  fit_df <- list.files(data_path, full.names = TRUE) %>% map_df(readRDS)
-  
-  # format and filter to n 1-300
-  fit_df <- fit_df %>%
-    dplyr::mutate(n = as.numeric(as.character(n)), fit = as.numeric(as.character(fit))) %>%
-    dplyr::filter(n >= 1, n <= 300, !is.na(AUC)) %>%
-    dplyr::mutate(n_bin_val = cut(n, breaks = seq(0, max(n, na.rm = TRUE) + bin_size, by = bin_size),
-                      labels = FALSE) * bin_size,n_bin = factor(n_bin_val)) %>%
-    dplyr::left_join(fit_to_quality, by = "fit") %>%
-    dplyr::mutate(quality = factor(quality, levels = names(fit_groups)))
-  
-  # one plot per quality group
-  quality_results <- lapply(levels(fit_df$quality), function(quality_label) {
-    
-    plot_data <- fit_df %>% dplyr::filter(quality == quality_label)
-    
-    # get breakpoint
-    bp  <- get_breakpoint(n_values = plot_data$n, metric_values = plot_data$AUC)
-    stab_val <- bp$bp
-    
-    stab_bin <- if (!is.na(stab_val)) {
-      bins <- as.numeric(levels(plot_data$n_bin))
-      bins[which.min(abs(bins - stab_val))]
-    } else NA
-    
-    p <- ggplot(plot_data, aes(x = n_bin, y = AUC)) +
-      geom_boxplot(fill = "steelblue", alpha = 0.7, outlier.size = 0.5) +
-      stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
-      theme_bw() +
-      ylim(0, 1) +
-      theme(
-        plot.title = element_text(size = 9, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 7),
-        axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
-        axis.text.y = element_text(size = 6),
-        panel.grid.minor = element_blank()) +
+      theme(plot.title = element_text(size = 9, face = "bold", hjust = 0.5),
+            axis.title = element_text(size = 7),
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
+            axis.text.y = element_text(size = 6),
+            panel.grid.minor = element_blank()) +
       labs(x = "n", y = "AUC", title = quality_label)
     
     if (!is.na(stab_bin)) {
@@ -438,40 +299,64 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")) {
                  angle = 90, vjust = 1.5, size = 2.5, color = "darkred")
     }
     
-    list(plot = p, quality = quality_label, stab_val = stab_val)
+    list(plot = p, eval = eval_label, quality = quality_label, stab_val = stab_val)
   })
-  
-  # split plots and thresholds
-  quality_plots <- lapply(quality_results, function(x) x$plot)
-  
-  threshold_df <- tibble::tibble(eval = eval, quality = sapply(quality_results, function(x) x$quality),
-                                 stab_val = sapply(quality_results, function(x) x$stab_val))
-  
-  write.csv(threshold_df, file = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_Thresholds_by_FitQuality.csv"),
-            row.names = FALSE)
-  
-  combined_plot <- wrap_plots(quality_plots, ncol = 3)
-  
-  ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/", eval, "_AUC_by_FitQuality.png"),
-         plot = combined_plot, width = 16, height = 6, dpi = 300)
+})
+
+# flatten nested list
+all_results_flat <- unlist(all_results, recursive = FALSE)
+
+# split plots and thresholds
+all_plots <- lapply(all_results_flat, function(x) x$plot)
+
+threshold_df <- tibble::tibble(eval = sapply(all_results_flat, function(x) x$eval),
+                               quality  = sapply(all_results_flat, function(x) x$quality),
+                               stab_val = sapply(all_results_flat, function(x) x$stab_val))
+
+write.csv(threshold_df, file = paste0(envrmt$path_evaluation, "/Plots/All_AUC_Thresholds_by_FitQuality.csv"),
+          row.names = FALSE)
+
+# helper function to create a rotated row label
+row_label <- function(label) {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5, label = label,
+             angle = 90, size = 4, fontface = "bold") +
+    theme_void()
 }
 
+# plots for pa, po random and po balanced
+row_PA <- wrap_plots(row_label("PA"),
+                     wrap_plots(all_plots[1:3], ncol = 3),
+                     ncol = 2, widths = c(0.01, 1))
+
+row_PO_Rand <- wrap_plots(row_label("PO-Random"),
+                          wrap_plots(all_plots[4:6], ncol = 3),
+                          ncol = 2, widths = c(0.01, 1))
+
+row_PO_Bal <- wrap_plots(row_label("PO-Balanced"),
+                         wrap_plots(all_plots[7:9], ncol = 3),
+                         ncol = 2, widths = c(0.01, 1))
+
+combined_plot <- row_PA / row_PO_Bal / row_PO_Rand
+
+ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/All_AUC_by_FitQuality.png"), plot = combined_plot,
+       width = 17, height = 14, dpi = 300)
+
 # ================================================================
-# 8. AUC threshold by sampling strategy
+# 6. AUC threshold by sampling strategy
 # ================================================================
 
 # sampling strategy grouping
-strat_lookup <- c(
-  "Random" = "Random",
-  "Cluster" = "Cluster",
-  "Block" = "Block",
-  "Convenience" = "Convenience",
-  "Systematic" = "Systematic",
-  "Snowball" = "Snowball",
-  "Leave-Out" = "LeaveOut",
-  "Stratified" = "Stratified",
-  "Effort-Driven" = "EffortDriven",
-  "Preferential" = "Preferential")
+strat_lookup <- c("Random" = "Random",
+                  "Cluster" = "Cluster",
+                  "Block" = "Block",
+                  "Convenience" = "Convenience",
+                  "Systematic" = "Systematic",
+                  "Snowball" = "Snowball",
+                  "Leave-Out" = "LeaveOut",
+                  "Stratified" = "Stratified",
+                  "Effort-Driven" = "EffortDriven",
+                  "Preferential" = "Preferential")
 
 for (eval in c("PA", "PO_Random", "PO_Balanced")) {
 
