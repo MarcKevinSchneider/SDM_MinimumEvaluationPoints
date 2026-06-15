@@ -23,7 +23,7 @@ These results show that SDM evaluation imposes its own sample size requirements 
 - `00_setup_project.R`: Sets the packages and folder structure.
 - `01_artificial_distribution_maps.R`: Creates the ADMs for the analysis.
 - `02_sampling_presence_points.R`: Samples the presence-absence and background points from the virtual species and ADMs.
-- `03_evaluation.R`: Evaluates the individual sampling runs using eight evaluation metrics (AUC, TSS, Kappa, Pearson's Correlation, RMSE, MAE, Jaccard's Similarity, Sorensen's Similarity)-
+- `03_evaluation.R`: Evaluates the individual sampling runs using eight evaluation metrics (AUC, TSS, Kappa, Pearson's Correlation, RMSE, MAE, Jaccard's Similarity, Sorensen's Similarity).
 - `04_analysis.R`: Evaluates the minimum evaluation size thresolds for different experimental conditions and saves the results as boxplots and .csv files.
 
 ## Copyright
