@@ -25,3 +25,9 @@ These results show that SDM evaluation imposes its own sample size requirements 
 - `02_sampling_presence_points.R`: Samples the presence-absence and background points from the virtual species and ADMs.
 - `03_evaluation.R`: Evaluates the individual sampling runs using eight evaluation metrics (AUC, TSS, Kappa, Pearson's Correlation, RMSE, MAE, Jaccard's Similarity, Sorensen's Similarity)-
 - `04_analysis.R`: Evaluates the minimum evaluation size thresolds for different experimental conditions and saves the results as boxplots and .csv files.
+
+## Copyright
+You are free to download and use the contents of this repository, as long as you credit this repository and the author "Marc Kevin Schneider".
+
+## Questions regarding this repository
+For questions regarding the analysis or this repository, please contact me by writing a ticket or by sending me a mail under Schnei7q@students.uni-marburg.de. I will try to respond as soon as possible.
