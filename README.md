@@ -9,14 +9,19 @@ We found that for PA evaluation, sample sizes of $n$ = 25-60 were sufficient acr
 These results show that SDM evaluation imposes its own sample size requirements that should be considered independently from model training requirements. We therefore recommend a sample size of at least 60 to 100 presence points for ecological studies, with at least 30-60 for PA and 60-80 for balanced PO evaluation, with the rest being used for model training. We also heavily discourage the use of a large random background sample for model evaluation, in line with previous research. The findings presented here highlight the importance of choosing an appropriate evaluation design and sampling strategy for ecological studies and further reinforce that class imbalance should be accounted for in SDM evaluation. 
 
 ## Structure of the repository:
-- `src`: Scripts for the analysis
 - `data`: Basic data for the virtual species and ADMs
+- `src`: Scripts for the analysis
+
+## Structure of the data-folder:
+- `ADM`: Artificial Distribution Maps (ADM) .tif files created by applying a gaussian random field with gradually decreasing levels of autocorrelation to the presence-absence raster of each virtual species. Ranges from 0.1 (low autocorrelation) to 0.9 (high autocorrelation) and simulates model performance from poor- to good-fit models.
+- `VirtualSpecies`: Ten virtual species (VS) .RDS files which were adapted from [Grimmet et al. 2020](https://doi.org/10.1016/j.ecolmodel.2020.109194). Of these ten VS, VS1-3 show a large-sized, VS4-6 show a medium-sized and VS7-10 show a narrow-sized distribution.
+- `paRaster`: Presence-Absence distribution .tif files of the ten VS, extracted from the .RDS files of each VS. 
 
 ## Structure of the src-folder:
 - `functions`: Functions for the main scripts. Contains the ten sampling strategies, as well as the breakpoint detection function and the evaluation functions.
 - `prep`: Preparation scripts. Mostly downloads or formats data, together with the overview maps of the study area and virtual species.
 - `00_setup_project.R`: Sets the packages and folder structure.
-- `01_artificial_distribution_maps.R`: Creates the artificial distribution maps for the analysis.
-- `02_sampling_presence_points.R`: Samples the presence-absence and background points from the virtual species and artificial distribution maps.
+- `01_artificial_distribution_maps.R`: Creates the ADMs for the analysis.
+- `02_sampling_presence_points.R`: Samples the presence-absence and background points from the virtual species and ADMs.
 - `03_evaluation.R`: Evaluates the individual sampling runs using eight evaluation metrics (AUC, TSS, Kappa, Pearson's Correlation, RMSE, MAE, Jaccard's Similarity, Sorensen's Similarity)-
 - `04_analysis.R`: Evaluates the minimum evaluation size thresolds for different experimental conditions and saves the results as boxplots and .csv files.
