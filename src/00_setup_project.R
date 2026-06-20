@@ -4,9 +4,8 @@
 #' @contact Schnei7q@students.uni-marburg.de
 #' 
 #' @description
-#' Setup script for the analysis "Establishing the Minimum Number of Validation 
-#' Points Needed for Reliable Species Distribution Model Assessment 
-#' Under Varying Conditions". 
+#' Setup script for the analysis "Establishing the Minimum Number of Evaluation Points Needed for Species
+#' Distribution Modeling Assessment". 
 #' 
 #' Sets the folder structure and loads the most important packages.
 
