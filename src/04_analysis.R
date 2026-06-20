@@ -92,29 +92,29 @@ for (eval in c("PA", "PO_Random", "PO_Balanced")){
       stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred") +
       theme_bw() +
       theme(
-        plot.title = element_text(size = 9, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 7),
-        axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
-        axis.text.y = element_text(size = 6),
+        plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 10),
+        axis.text.x = element_text(angle = 90, hjust = 1, size = 9),
+        axis.text.y = element_text(size = 9),
         panel.grid.minor = element_blank()
       ) + xlab("n") + ggtitle(metric)
     
     if (!is.na(stab_bin)) {
       p <- p +
         geom_vline(xintercept = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))),
-                   color = "firebrick", linetype = "dashed") +
+                   color = "firebrick", linetype = "dashed", linewidth = 1) +
         annotate("text", x = as.numeric(factor(stab_bin, levels = levels(plot_data$n_bin))), 
-                 y = min(plot_data[[metric]], na.rm = TRUE), label = paste0("n=", round(stab_val)), 
-                 angle = 90, vjust = 1.5, size = 2.5, color = "darkred")
+                 y = (min(plot_data[[metric]], na.rm = TRUE) + 0.1), label = paste0("n=", round(stab_val)), 
+                 angle = 90, vjust = 2.5 ,size = 4.5, color = "darkred")
     }
     return(p)
   })
   
   # combine and save
-  combined_plot <- wrap_plots(metric_plots, ncol = 4)
+  combined_plot <- wrap_plots(metric_plots, ncol = 2)
   
   ggsave(filename = paste0(envrmt$path_evaluation, "/Plots/", eval, "_FittedCurve_Threshold.png"),
-         plot = combined_plot, width = 16, height = 8, dpi = 300)
+         plot = combined_plot, width = 12, height = 16, dpi = 300)
 }
 
 

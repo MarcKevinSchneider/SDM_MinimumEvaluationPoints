@@ -25,6 +25,7 @@ library(terra)            # raster handling
 library(climateStability) # rescaling to [0,1]
 library(RandomFieldsUtils)# dependency RandomField package
 library(raster)           # dependency RandomField package
+library(predicts)         # for the background sampling
 library(virtualspecies)   # for virtual species
 library(ggplot2)          # for plotting
 library(blockCV)          # for some of the sampling strategies
